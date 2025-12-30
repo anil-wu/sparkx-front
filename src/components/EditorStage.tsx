@@ -108,6 +108,32 @@ export default function EditorStage({
           rotation: 0, 
           color: '#ef4444' 
         };
+      } else if (activeTool === 'triangle') {
+        // Simple implementation for triangle (using existing rectangle logic or we can add specific later)
+        // For now, let's treat it as a rectangle internally or just use rectangle type to avoid crashes if we don't have a renderer
+        // Ideally we should add a renderer for 'triangle'
+        newElement = { 
+          id: newId, 
+          type: 'rectangle', // Fallback to rectangle for now to avoid rendering issues
+          x: x - 50, 
+          y: y - 50, 
+          width: 100, 
+          height: 100, 
+          rotation: 0, 
+          color: '#10b981' 
+        };
+      } else if (['star', 'message-square', 'arrow-left', 'arrow-right'].includes(activeTool)) {
+         // Fallback for other new shapes
+         newElement = { 
+          id: newId, 
+          type: 'rectangle', 
+          x: x - 50, 
+          y: y - 50, 
+          width: 100, 
+          height: 100, 
+          rotation: 0, 
+          color: '#8b5cf6' 
+        };
       }
 
       if (newElement) {
