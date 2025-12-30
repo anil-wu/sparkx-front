@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import ToolsPanel, { ToolType } from './ToolsPanel';
 import ImageToolbar from './ImageToolbar';
-import ImageElement from './ImageElement';
-import CanvasElement from './CanvasElement';
 import { ZoomIn, ZoomOut } from 'lucide-react';
+
+// Dynamically import EditorStage to avoid SSR issues with Konva
+const EditorStage = dynamic(() => import('./EditorStage'), { ssr: false });
 
 interface CanvasAreaProps {
   isSidebarCollapsed: boolean;
@@ -28,49 +30,33 @@ export default function CanvasArea({ isSidebarCollapsed }: CanvasAreaProps) {
     { id: '1', type: 'image', x: 100, y: 100, width: 400, height: 600, rotation: 0 }
   ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  const handleElementSelect = (id: string) => {
-    if (activeTool === 'select') {
-      setSelectedId(id);
-    }
-  };
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight
+        });
+      }
+    };
 
-  const handleElementChange = (id: string, attrs: { x: number; y: number; width: number; height: number; rotation: number }) => {
-    setElements(prev => prev.map(el => el.id === id ? { ...el, ...attrs } : el));
-  };
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
 
-  const handleBackgroundClick = (e: React.MouseEvent) => {
-    // If clicking on background with select tool, deselect
-    if (activeTool === 'select') {
-      setSelectedId(null);
-      return;
-    }
-
-    // Add new element based on tool
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const newId = Date.now().toString();
-    let newElement: CanvasItem | null = null;
-
-    if (activeTool === 'rectangle') {
-      newElement = { id: newId, type: 'rectangle', x: x - 50, y: y - 50, width: 100, height: 100, rotation: 0, color: '#3b82f6' };
-    } else if (activeTool === 'circle') {
-      newElement = { id: newId, type: 'circle', x: x - 50, y: y - 50, width: 100, height: 100, rotation: 0, color: '#ef4444' };
-    }
-
-    if (newElement) {
-      setElements([...elements, newElement]);
-      setActiveTool('select');
-      setSelectedId(newId);
-    }
-  };
+  const handleZoomIn = () => setZoom(z => Math.min(z * 1.1, 3));
+  const handleZoomOut = () => setZoom(z => Math.max(z / 1.1, 0.1));
 
   return (
     <div 
       className="flex-1 relative bg-[#fafafa] overflow-hidden"
-      onClick={handleBackgroundClick}
+      ref={containerRef}
     >
       <ToolsPanel 
         isSidebarCollapsed={isSidebarCollapsed} 
@@ -79,59 +65,56 @@ export default function CanvasArea({ isSidebarCollapsed }: CanvasAreaProps) {
       />
       
       {/* Canvas Stage Layer */}
-      <div className="w-full h-full relative">
-        {selectedId && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
-            <ImageToolbar />
-          </div>
-        )}
+      {dimensions.width > 0 && dimensions.height > 0 && (
+        <EditorStage 
+          elements={elements}
+          onElementsChange={setElements}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          activeTool={activeTool}
+          onToolUsed={() => setActiveTool('select')}
+          zoom={zoom}
+          width={dimensions.width}
+          height={dimensions.height}
+          onDragStart={() => setIsDragging(true)}
+          onDragEnd={() => setIsDragging(false)}
+        />
+      )}
+
+      {selectedId && !isDragging && (() => {
+        const selectedElement = elements.find(el => el.id === selectedId);
+        if (!selectedElement) return null;
+
+        // Use stage-relative coordinates, taking zoom and pan into account (if pan is added later)
+        // Currently we only have zoom.
+        // Konva element x/y are relative to the stage top-left (0,0).
+        // The stage itself might be transformed, but here we apply zoom to stage scale.
+        // So screen coordinate = element coordinate * zoom
         
-        {elements.map(el => {
-          const isSelected = selectedId === el.id;
-          
-          if (el.type === 'image') {
-            return (
-              <ImageElement 
-                key={el.id}
-                isSelected={isSelected} 
-                onSelect={() => handleElementSelect(el.id)}
-                onChange={(attrs) => handleElementChange(el.id, attrs)}
-                x={el.x}
-                y={el.y}
-                width={el.width}
-                height={el.height}
-              />
-            );
-          }
+        // Ensure we're using the latest element position
+        const left = (selectedElement.x + selectedElement.width / 2) * zoom;
+        const top = selectedElement.y * zoom;
 
-          return (
-            <CanvasElement
-              key={el.id}
-              isSelected={isSelected}
-              onSelect={() => handleElementSelect(el.id)}
-              onChange={(attrs) => handleElementChange(el.id, attrs)}
-              label={el.type}
-              initialX={el.x}
-              initialY={el.y}
-              initialWidth={el.width}
-              initialHeight={el.height}
-            >
-              <div 
-                className="w-full h-full"
-                style={{ 
-                  backgroundColor: el.color || '#ccc',
-                  borderRadius: el.type === 'circle' ? '50%' : '0'
-                }}
-              />
-            </CanvasElement>
-          );
-        })}
-      </div>
+        return (
+          <div 
+            className="absolute z-50 pointer-events-none transition-all duration-75 ease-out"
+            style={{
+              left: left,
+              top: top,
+              transform: 'translate(-50%, -100%) translateY(-12px)'
+            }}
+          >
+            <div className="pointer-events-auto">
+              <ImageToolbar />
+            </div>
+          </div>
+        );
+      })()}
 
-      <div className="absolute bottom-5 right-5 bg-white rounded-full px-3 py-1 shadow-md flex items-center gap-2 text-xs text-gray-600 z-50">
-        <button className="p-1 hover:text-gray-900"><ZoomOut size={16} /></button>
-        <span>100%</span>
-        <button className="p-1 hover:text-gray-900"><ZoomIn size={16} /></button>
+      <div className="absolute top-6 right-20 bg-white rounded-lg px-2 py-1.5 shadow-md flex items-center gap-3 text-sm text-gray-700 z-50">
+        <button className="p-1 hover:text-black transition-colors" onClick={handleZoomOut}><ZoomOut size={16} /></button>
+        <span className="min-w-[40px] text-center font-medium">{Math.round(zoom * 100)}%</span>
+        <button className="p-1 hover:text-black transition-colors" onClick={handleZoomIn}><ZoomIn size={16} /></button>
       </div>
     </div>
   );
