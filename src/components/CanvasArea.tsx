@@ -136,7 +136,7 @@ export default function CanvasArea({
         const top = selectedElement.y * zoom + stagePos.y;
 
         const isImage = selectedElement.type === 'image';
-        const isShape = ['rectangle', 'triangle', 'star'].includes(selectedElement.type);
+        const isShape = ['rectangle', 'triangle', 'star', 'circle', 'message-square', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'].includes(selectedElement.type);
 
         if (!isImage && !isShape) return null;
 

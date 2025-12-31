@@ -339,7 +339,13 @@ export default function ShapeToolbar({ element, onUpdate, onDownload }: ShapeToo
   const width = Math.round(el.width);
   const height = Math.round(el.height);
   const strokeWidth = el.strokeWidth || 2;
-  const cornerRadius = el.cornerRadius || 0;
+  
+  let defaultCornerRadius = 0;
+  if (el.type === 'circle' || el.type === 'circle-text') {
+       defaultCornerRadius = Math.min(width, height) / 2;
+  }
+  const cornerRadius = el.cornerRadius !== undefined ? el.cornerRadius : defaultCornerRadius;
+  
   const sides = el.type === 'triangle' ? (el.sides || 3) : (el.type === 'star' ? (el.sides || 5) : undefined);
   const starInnerRadius = el.type === 'star' ? (el.starInnerRadius !== undefined ? el.starInnerRadius : 50) : undefined;
 
@@ -392,7 +398,8 @@ export default function ShapeToolbar({ element, onUpdate, onDownload }: ShapeToo
          )}
       </div>
 
-      {/* Corner Radius */}
+      {/* Corner Radius - Hide for circles */}
+      {el.type !== 'circle' && el.type !== 'circle-text' && (
       <div className="relative">
          <button 
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
@@ -412,6 +419,7 @@ export default function ShapeToolbar({ element, onUpdate, onDownload }: ShapeToo
             />
          )}
       </div>
+      )}
 
       <div className="w-px h-6 bg-gray-200 mx-1"></div>
 
