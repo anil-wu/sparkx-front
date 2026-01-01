@@ -4,11 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import ToolsPanel from './ToolsPanel';
 import { ToolType } from './types/ToolType';
-import ImageToolbar from './toolbars/ImageToolbar';
-import ShapeToolbar from './toolbars/ShapeToolbar';
-import DrawToolbar from './toolbars/DrawToolbar';
-import DrawSelectionToolbar from './toolbars/DrawSelectionToolbar';
-import TextToolBar from './toolbars/TextToolBar';
+import ImageToolbar from './elements/image/ToolBar';
+import ShapeToolbar from './elements/shape/ToolBar';
+import PencilToolbar from './elements/pencil/ToolBar';
+import PenToolbar from './elements/pen/ToolBar';
+import PencilSelectionToolbar from './elements/pencil/SelectionToolBar';
+import PenSelectionToolbar from './elements/pen/SelectionToolBar';
+import TextToolBar from './elements/text/ToolBar';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { BaseElement } from './types/BaseElement';
 
@@ -136,30 +138,57 @@ export default function CanvasArea({
       {/* Persistent DrawToolbar when in pencil/pen mode */}
       {['pencil', 'pen'].includes(activeTool) && (
         <div className="absolute z-50 left-1/2 top-4 -translate-x-1/2">
-           <DrawToolbar 
-              element={(() => {
-                  if (selectedId) {
-                      const el = elements.find(e => e.id === selectedId);
-                      if (el && ['pencil', 'pen'].includes(el.type)) {
-                          return el;
-                      }
-                  }
-                  return drawingStyle as any;
-              })()}
-              onUpdate={(updates) => {
-                  setDrawingStyle(prev => ({ ...prev, ...updates }));
-                  
-                  if (selectedId) {
-                      const el = elements.find(e => e.id === selectedId);
-                      if (el && ['pencil', 'pen'].includes(el.type)) {
-                          const newElements = elements.map(e => 
-                              e.id === selectedId ? e.update(updates) : e
-                          );
-                          onElementsChange(newElements);
-                      }
-                  }
-              }}
-           />
+           {activeTool === 'pencil' ? (
+             <PencilToolbar 
+                element={(() => {
+                    if (selectedId) {
+                        const el = elements.find(e => e.id === selectedId);
+                        if (el && el.type === 'pencil') {
+                            return el;
+                        }
+                    }
+                    return drawingStyle as any;
+                })()}
+                onUpdate={(updates) => {
+                    setDrawingStyle(prev => ({ ...prev, ...updates }));
+                    
+                    if (selectedId) {
+                        const el = elements.find(e => e.id === selectedId);
+                        if (el && el.type === 'pencil') {
+                            const newElements = elements.map(e => 
+                                e.id === selectedId ? e.update(updates) : e
+                            );
+                            onElementsChange(newElements);
+                        }
+                    }
+                }}
+             />
+           ) : (
+             <PenToolbar 
+                element={(() => {
+                    if (selectedId) {
+                        const el = elements.find(e => e.id === selectedId);
+                        if (el && el.type === 'pen') {
+                            return el;
+                        }
+                    }
+                    return drawingStyle as any;
+                })()}
+                onUpdate={(updates) => {
+                    setDrawingStyle(prev => ({ ...prev, ...updates }));
+                    
+                    if (selectedId) {
+                        const el = elements.find(e => e.id === selectedId);
+                        if (el && el.type === 'pen') {
+                            const newElements = elements.map(e => 
+                                e.id === selectedId ? e.update(updates) : e
+                            );
+                            onElementsChange(newElements);
+                        }
+                    }
+                }}
+             />
+           )}
         </div>
       )}
 
@@ -222,18 +251,33 @@ export default function CanvasArea({
               {isImage ? (
                 <ImageToolbar />
               ) : isDraw ? (
-                <DrawSelectionToolbar 
-                  element={selectedElement}
-                  onUpdate={(updates) => {
-                    const newElements = elements.map(el => 
-                      el.id === selectedId ? el.update(updates) : el
-                    );
-                    onElementsChange(newElements);
-                  }}
-                  onDownload={() => {
-                    console.log('Download', selectedElement);
-                  }}
-                />
+                selectedElement.type === 'pencil' ? (
+                  <PencilSelectionToolbar 
+                    element={selectedElement}
+                    onUpdate={(updates) => {
+                      const newElements = elements.map(el => 
+                        el.id === selectedId ? el.update(updates) : el
+                      );
+                      onElementsChange(newElements);
+                    }}
+                    onDownload={() => {
+                      console.log('Download', selectedElement);
+                    }}
+                  />
+                ) : (
+                  <PenSelectionToolbar 
+                    element={selectedElement}
+                    onUpdate={(updates) => {
+                      const newElements = elements.map(el => 
+                        el.id === selectedId ? el.update(updates) : el
+                      );
+                      onElementsChange(newElements);
+                    }}
+                    onDownload={() => {
+                      console.log('Download', selectedElement);
+                    }}
+                  />
+                )
               ) : (
                 <ShapeToolbar 
                   element={selectedElement}

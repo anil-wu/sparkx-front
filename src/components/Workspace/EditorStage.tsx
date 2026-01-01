@@ -2,15 +2,16 @@
 
 import React, { useRef, useEffect } from 'react';
 import { Stage, Layer, Transformer } from 'react-konva';
-import ImageElement from './elements/ImageElement';
-import ShapeElement from './elements/ShapeElement';
-import TextElement from './elements/TextElement';
-import TextRectangleElement from './elements/TextRectangleElement';
-import TextCircleElement from './elements/TextCircleElement';
-import TextChatBubbleElement from './elements/TextChatBubbleElement';
-import TextArrowLeftElement from './elements/TextArrowLeftElement';
-import TextArrowRightElement from './elements/TextArrowRightElement';
-import DrawElement from './elements/DrawElement';
+import ImageElement from './elements/image/Element';
+import ShapeElement from './elements/shape/Element';
+import TextElement from './elements/text/Element';
+import TextRectangleElement from './elements/text-rectangle/Element';
+import TextCircleElement from './elements/text-circle/Element';
+import TextChatBubbleElement from './elements/chat-bubble/Element';
+import TextArrowLeftElement from './elements/arrow/LeftElement';
+import TextArrowRightElement from './elements/arrow/RightElement';
+import PencilElement from './elements/pencil/Element';
+import PenElement from './elements/pen/Element';
 import { ToolType } from './types/ToolType';
 import Konva from 'konva';
 import { 
@@ -106,6 +107,70 @@ export default function EditorStage({
     };
   };
 
+  const finishPenDrawing = (drawEl: DrawElementModel, closePath: boolean = false) => {
+      let points = drawEl.points || [];
+      
+      // If closing path, make sure last point matches first
+      if (closePath && points.length >= 2) {
+          points = [...points.slice(0, points.length - 2), points[0], points[1]];
+      } else {
+          // If just finishing, remove the last "moving" point (last 2 coords)
+          // because it was just tracking the cursor and not clicked yet.
+          if (points.length >= 2) {
+              points = points.slice(0, points.length - 2);
+          }
+      }
+
+      if (points.length < 4) {
+          setIsDrawing(false);
+          setPreviewElement(null);
+          return;
+      }
+
+      // Normalize points
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      
+      for (let i = 0; i < points.length; i += 2) {
+          const px = points[i];
+          const py = points[i+1];
+          minX = Math.min(minX, px);
+          minY = Math.min(minY, py);
+          maxX = Math.max(maxX, px);
+          maxY = Math.max(maxY, py);
+      }
+      
+      const width = maxX - minX;
+      const height = maxY - minY;
+      
+      const newPoints = points.map((val, i) => {
+          return i % 2 === 0 ? val - minX : val - minY;
+      });
+      
+      const finalElement = drawEl.update({
+          x: minX,
+          y: minY,
+          width: Math.max(width, 1),
+          height: Math.max(height, 1),
+          points: newPoints
+      });
+
+      onElementsChange([...elements, finalElement]);
+      onSelect(finalElement.id);
+      onToolUsed();
+      
+      setIsDrawing(false);
+      setPreviewElement(null);
+  };
+
+  const handleStageDblClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (activeTool === 'pen' && isDrawing && previewElement) {
+          finishPenDrawing(previewElement as DrawElementModel);
+      }
+  };
+
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     // If clicked on empty area - remove all selections
     if (e.target === e.target.getStage()) {
@@ -135,12 +200,12 @@ export default function EditorStage({
 
       const { x, y } = getStagePos(stage, pointerPosition);
 
-      if (['pencil', 'pen'].includes(activeTool)) {
+      if (activeTool === 'pencil') {
          setIsDrawing(true);
          setDrawStartPos({ x, y });
          
          const newEl = ElementFactory.createDefault(activeTool, 0, 0);
-         // For pencil/pen, we start with points in absolute coordinates (relative to stage)
+         // For pencil, we start with points in absolute coordinates (relative to stage)
          // We set x,y to 0 during drawing, and normalize them on mouse up
          const drawEl = newEl as DrawElementModel;
          drawEl.points = [x, y];
@@ -166,6 +231,60 @@ export default function EditorStage({
              }
          }
          onSelect(null);
+         return;
+      }
+
+      if (activeTool === 'pen') {
+         if (selectedId) {
+             const updatedElements = elements.map(el => {
+                if (el.id === selectedId && el.isEditing) {
+                    return el.update({ isEditing: false });
+                }
+                return el;
+             });
+             if (updatedElements !== elements) {
+                 onElementsChange(updatedElements);
+             }
+             onSelect(null);
+         }
+
+         if (!isDrawing) {
+             // Start new Pen path
+             setIsDrawing(true);
+             setDrawStartPos({ x, y });
+             
+             const newEl = ElementFactory.createDefault(activeTool, 0, 0);
+             const drawEl = newEl as DrawElementModel;
+             drawEl.points = [x, y, x, y]; // Start + Preview Point
+             drawEl.x = 0;
+             drawEl.y = 0;
+             
+             if (drawingStyle) {
+               drawEl.stroke = drawingStyle.stroke;
+               drawEl.strokeWidth = drawingStyle.strokeWidth;
+             }
+             setPreviewElement(drawEl);
+         } else {
+             // Continue existing Pen path
+             const drawEl = previewElement as DrawElementModel;
+             const points = drawEl.points || [];
+             
+             // Check for closing path (click near start)
+             if (points.length >= 4) {
+                 const startX = points[0];
+                 const startY = points[1];
+                 const dist = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+                 if (dist < 10) {
+                     // Close path
+                     finishPenDrawing(drawEl, true);
+                     return;
+                 }
+             }
+
+             // Add new point for the next segment
+             const newPoints = [...points, x, y];
+             setPreviewElement(drawEl.update({ points: newPoints }));
+         }
          return;
       }
 
@@ -227,11 +346,23 @@ export default function EditorStage({
 
     const { x, y } = getStagePos(stage, pointerPosition);
 
-    if (['pencil', 'pen'].includes(activeTool)) {
+    if (activeTool === 'pencil') {
        const drawEl = previewElement as DrawElementModel;
        // Add new point
        const newPoints = (drawEl.points || []).concat([x, y]);
        setPreviewElement(drawEl.update({ points: newPoints }));
+       return;
+    }
+
+    if (activeTool === 'pen') {
+       const drawEl = previewElement as DrawElementModel;
+       const points = [...(drawEl.points || [])];
+       if (points.length >= 2) {
+           // Update last point to follow cursor
+           points[points.length - 2] = x;
+           points[points.length - 1] = y;
+           setPreviewElement(drawEl.update({ points }));
+       }
        return;
     }
 
@@ -271,7 +402,13 @@ export default function EditorStage({
     
     let finalElement = previewElement;
 
-    if (['pencil', 'pen'].includes(activeTool)) {
+    if (activeTool === 'pen') {
+       // Pen drawing is not finished on mouse up (unless we implement click-drag-release logic, 
+       // but here we are doing click-click logic).
+       return;
+    }
+
+    if (activeTool === 'pencil') {
        const drawEl = previewElement as DrawElementModel;
        const points = drawEl.points || [];
        if (points.length < 4) { // Need at least 2 points
@@ -375,6 +512,7 @@ export default function EditorStage({
       onTouchMove={handleStageMouseMove as any}
       onMouseUp={handleStageMouseUp}
       onTouchEnd={handleStageMouseUp as any}
+      onDblClick={handleStageDblClick}
       className="bg-[#fafafa]"
     >
       <Layer>
@@ -452,14 +590,22 @@ export default function EditorStage({
                default:
                  return null;
              }
-          } else if (['pencil', 'pen'].includes(el.type)) {
+          } else if (el.type === 'pencil') {
              return (
-               <DrawElement 
+               <PencilElement 
                  {...commonProps}
                  points={(el as DrawElementModel).points}
                  stroke={(el as DrawElementModel).stroke}
                  strokeWidth={(el as DrawElementModel).strokeWidth}
-                 tension={el.type === 'pen' ? 0.5 : 0}
+               />
+             );
+          } else if (el.type === 'pen') {
+             return (
+               <PenElement 
+                 {...commonProps}
+                 points={(el as DrawElementModel).points}
+                 stroke={(el as DrawElementModel).stroke}
+                 strokeWidth={(el as DrawElementModel).strokeWidth}
                />
              );
           } else if (['rectangle', 'circle', 'triangle', 'star'].includes(el.type)) {
