@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import HierarchyPanel from './hierarchy/HierarchyPanel';
 import ProjectPanel from './project/ProjectPanel';
+import GamePanel from './game/GamePanel';
 import CanvasArea from './CanvasArea';
 import ChatPanel from './chat/ChatPanel';
 import { BaseElement, ElementFactory } from './types/BaseElement';
@@ -98,12 +99,7 @@ export default function Workspace() {
             onSelect={setSelectedId}
           />
         ) : (
-          <div className="flex items-center justify-center w-full h-full text-gray-400">
-             <div className="text-center">
-               <Gamepad2 size={48} className="mx-auto mb-4 opacity-50" />
-               <p>Game Preview Mode</p>
-             </div>
-          </div>
+          <GamePanel />
         )}
       </div>
 
