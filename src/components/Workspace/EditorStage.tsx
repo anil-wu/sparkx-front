@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Transformer, Circle } from 'react-konva';
 import ImageElement from './editor/tools/image/Element';
 import ShapeElement from './editor/tools/shape/Element';
@@ -57,10 +57,10 @@ export default function EditorStage({
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
 
-  const [isDrawing, setIsDrawing] = React.useState(false);
-  const [drawStartPos, setDrawStartPos] = React.useState({ x: 0, y: 0 });
-  const [previewElement, setPreviewElement] = React.useState<BaseElementModel | null>(null);
-  const [isClosingPath, setIsClosingPath] = React.useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawStartPos, setDrawStartPos] = useState({ x: 0, y: 0 });
+  const [previewElement, setPreviewElement] = useState<BaseElementModel | null>(null);
+  const [isClosingPath, setIsClosingPath] = useState(false);
 
   // Handle stage position updates (centering)
   useEffect(() => {
@@ -212,32 +212,22 @@ export default function EditorStage({
          setPreviewElement(drawEl);
          
          if (selectedId) {
-             const updatedElements = elements.map(el => {
-                if (el.id === selectedId && el.isEditing) {
-                    return el.update({ isEditing: false });
-                }
-                return el;
-             });
-             if (updatedElements !== elements) {
-                 onElementsChange(updatedElements);
+             const selectedElement = elements.find(el => el.id === selectedId);
+             if (selectedElement && selectedElement.isEditing) {
+                 updateElement(selectedId, { isEditing: false });
              }
          }
-         onSelect(null);
+         selectElement(null);
          return;
       }
 
       if (activeTool === 'pen') {
          if (selectedId) {
-             const updatedElements = elements.map(el => {
-                if (el.id === selectedId && el.isEditing) {
-                    return el.update({ isEditing: false });
-                }
-                return el;
-             });
-             if (updatedElements !== elements) {
-                 onElementsChange(updatedElements);
+             const selectedElement = elements.find(el => el.id === selectedId);
+             if (selectedElement && selectedElement.isEditing) {
+                 updateElement(selectedId, { isEditing: false });
              }
-             onSelect(null);
+             selectElement(null);
          }
 
          if (!isDrawing) {
@@ -519,7 +509,6 @@ export default function EditorStage({
           if (!el.visible) return null;
           
           const commonProps = {
-            key: el.id,
             id: el.id,
             x: el.x,
             y: el.y,
@@ -538,6 +527,7 @@ export default function EditorStage({
           if (el.type === 'image') {
             return (
               <ImageElement
+                key={el.id}
                 {...commonProps}
                 src={(el as ImageElementModel).src}
               />
@@ -545,6 +535,7 @@ export default function EditorStage({
           } else if (el.type === 'text') {
              return (
                <TextElement
+                  key={el.id}
                   {...commonProps}
                   text={(el as TextElementModel).text}
                   fontSize={(el as TextElementModel).fontSize}
@@ -577,21 +568,22 @@ export default function EditorStage({
 
              switch (el.type) {
                case 'rectangle-text':
-                 return <TextRectangleElement {...shapeTextProps} />;
+                 return <TextRectangleElement key={el.id} {...shapeTextProps} />;
                case 'circle-text':
-                 return <TextCircleElement {...shapeTextProps} />;
+                 return <TextCircleElement key={el.id} {...shapeTextProps} />;
                case 'chat-bubble':
-                 return <TextChatBubbleElement {...shapeTextProps} />;
+                 return <TextChatBubbleElement key={el.id} {...shapeTextProps} />;
                case 'arrow-left':
-                 return <TextArrowLeftElement {...shapeTextProps} />;
+                 return <TextArrowLeftElement key={el.id} {...shapeTextProps} />;
                case 'arrow-right':
-                 return <TextArrowRightElement {...shapeTextProps} />;
+                 return <TextArrowRightElement key={el.id} {...shapeTextProps} />;
                default:
                  return null;
              }
           } else if (el.type === 'pencil') {
              return (
                <PencilElement 
+                 key={el.id}
                  {...commonProps}
                  points={(el as DrawElementModel).points}
                  stroke={(el as DrawElementModel).stroke}
@@ -602,6 +594,7 @@ export default function EditorStage({
           } else if (el.type === 'pen') {
              return (
                <PenElement 
+                 key={el.id}
                  {...commonProps}
                  // If it is the preview element, treat it as selected so nodes are shown
                  isSelected={commonProps.isSelected || el.id === previewElement?.id}
@@ -614,6 +607,7 @@ export default function EditorStage({
           } else if (['rectangle', 'circle', 'triangle', 'star'].includes(el.type)) {
             return (
               <ShapeElement
+                key={el.id}
                 {...commonProps}
                 type={el.type}
                 color={(el as ShapeElementModel).color}

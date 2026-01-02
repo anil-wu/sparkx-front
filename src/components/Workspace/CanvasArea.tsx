@@ -35,10 +35,6 @@ export default function CanvasArea({
   const [drawingStyle, setDrawingStyle] = useState({ stroke: '#000000', strokeWidth: 2 });
 
   useEffect(() => {
-    // Center view on selection logic removed as requested
-  }, []); // Run when selectedId changes
-
-  useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
         setDimensions({
@@ -144,10 +140,7 @@ export default function CanvasArea({
                     if (selectedId) {
                         const el = elements.find(e => e.id === selectedId);
                         if (el && el.type === 'pencil') {
-                            const newElements = elements.map(e => 
-                                e.id === selectedId ? e.update(updates) : e
-                            );
-                            onElementsChange(newElements);
+                            updateElement(selectedId, updates);
                         }
                     }
                 }}
@@ -169,10 +162,7 @@ export default function CanvasArea({
                     if (selectedId) {
                         const el = elements.find(e => e.id === selectedId);
                         if (el && el.type === 'pen') {
-                            const newElements = elements.map(e => 
-                                e.id === selectedId ? e.update(updates) : e
-                            );
-                            onElementsChange(newElements);
+                            updateElement(selectedId, updates);
                         }
                     }
                 }}
