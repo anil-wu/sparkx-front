@@ -14,6 +14,8 @@ interface GenericInspectorBarProps {
   hasSides?: boolean;
   hasInnerRadius?: boolean;
   isDimensionReadOnly?: boolean;
+  colorProp?: string;
+  cornerIcon?: React.ReactNode;
 }
 
 export function GenericInspectorBar({ 
@@ -23,7 +25,9 @@ export function GenericInspectorBar({
   hasCornerPanel = false,
   hasSides = false,
   hasInnerRadius = false,
-  isDimensionReadOnly = false
+  isDimensionReadOnly = false,
+  colorProp = 'color',
+  cornerIcon
 }: GenericInspectorBarProps) {
   const [showStrokePanel, setShowStrokePanel] = useState(false);
   const [showCornerPanel, setShowCornerPanel] = useState(false);
@@ -52,7 +56,7 @@ export function GenericInspectorBar({
             id="fill-color-input"
             type="color" 
             value={color}
-            onChange={(e) => onUpdate({ color: e.target.value })}
+            onChange={(e) => onUpdate({ [colorProp]: e.target.value })}
             className="absolute opacity-0 w-0 h-0"
         />
       </div>
