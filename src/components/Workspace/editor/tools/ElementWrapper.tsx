@@ -26,7 +26,8 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
   isSelected,
   isEditing,
   draggable = true,
-  children
+  children,
+  ...rest
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const { activeTool, selectElement, updateElement } = useWorkspaceStore();
@@ -80,13 +81,23 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
         node.scaleX(1);
         node.scaleY(1);
         
-        updateElement(id, {
+        const nextWidth = Math.max(5, node.width() * scaleX);
+        const nextHeight = Math.max(5, node.height() * scaleY);
+        const nextUpdates: any = {
           x: node.x(),
           y: node.y(),
-          width: Math.max(5, node.width() * scaleX),
-          height: Math.max(5, node.height() * scaleY),
+          width: nextWidth,
+          height: nextHeight,
           rotation: node.rotation(),
-        });
+        };
+
+        const currentFontSize = (rest as any).fontSize;
+        const textLikeTypes: ToolType[] = ['text', 'chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'];
+        if (textLikeTypes.includes(type as any) && typeof currentFontSize === 'number') {
+          nextUpdates.fontSize = Math.max(5, Math.min(Math.round(currentFontSize * scaleY), 200));
+        }
+
+        updateElement(id, nextUpdates);
       }}
     >
       {children}

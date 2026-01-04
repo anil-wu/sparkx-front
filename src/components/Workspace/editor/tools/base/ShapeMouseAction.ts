@@ -2,11 +2,12 @@ import Konva from 'konva';
 import { BaseMouseAction } from './BaseMouseAction';
 import { ToolContext } from '../../interfaces/IMouseAction';
 import { ToolType } from '../../../types/ToolType';
-import { ElementFactory } from '../../../types/BaseElement';
+import { ElementFactory, TextElement, TextShapeElement } from '../../../types/BaseElement';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 
 export class ShapeMouseAction extends BaseMouseAction {
   type: ToolType;
+  private textBase: { height: number; fontSize: number } | null = null;
 
   constructor(type: ToolType) {
     super();
@@ -20,16 +21,17 @@ export class ShapeMouseAction extends BaseMouseAction {
     const pos = this.getPointerPosition(e);
     if (!pos) return;
 
-    // Start drawing
     this.startPos = pos;
     setIsDrawing(true);
 
-    // Create temporary element
     let newEl = ElementFactory.createDefault(this.type, pos.x, pos.y);
+    this.textBase =
+      newEl instanceof TextElement || newEl instanceof TextShapeElement
+        ? { height: Math.max(newEl.height || 1, 1), fontSize: Math.max((newEl as any).fontSize || 1, 1) }
+        : null;
     newEl = newEl.update({ width: 0, height: 0 });
     setPreviewElement(newEl);
 
-    // Deselect current
     if (selectedId) {
       const selectedElement = elements.find(el => el.id === selectedId);
       if (selectedElement && selectedElement.isEditing) {
@@ -52,12 +54,13 @@ export class ShapeMouseAction extends BaseMouseAction {
     const newX = Math.min(pos.x, this.startPos.x);
     const newY = Math.min(pos.y, this.startPos.y);
 
-    setPreviewElement(previewElement.update({
-      x: newX,
-      y: newY,
-      width,
-      height
-    }));
+    const updates: any = { x: newX, y: newY, width, height };
+    if (this.textBase && height > 0) {
+      const nextFontSize = Math.round((this.textBase.fontSize * height) / this.textBase.height);
+      updates.fontSize = Math.max(5, Math.min(nextFontSize, 200));
+    }
+
+    setPreviewElement(previewElement.update(updates));
   }
 
   onMouseUp(e: Konva.KonvaEventObject<MouseEvent>, context: ToolContext): void {
@@ -80,11 +83,11 @@ export class ShapeMouseAction extends BaseMouseAction {
     const dy = pos.y - this.startPos.y;
     const diagonal = Math.sqrt(dx * dx + dy * dy);
 
-    // Threshold for click vs drag
     if (diagonal < 5) { 
         setIsDrawing(false);
         setPreviewElement(null);
         onToolChange?.('select');
+        this.textBase = null;
         return;
     }
 
@@ -94,5 +97,6 @@ export class ShapeMouseAction extends BaseMouseAction {
     
     setIsDrawing(false);
     setPreviewElement(null);
+    this.textBase = null;
   }
 }

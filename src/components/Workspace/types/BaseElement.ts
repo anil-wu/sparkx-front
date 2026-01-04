@@ -111,14 +111,7 @@ export class TextShapeElement extends BaseElement<TextShapeState> {
   }
 
   update(props: Partial<TextShapeState>): TextShapeElement {
-    const updates = { ...props };
-    if (updates.height && this.height) {
-       const scaleY = updates.height / this.height;
-       if (scaleY > 0 && Math.abs(scaleY - 1) > 0.001) {
-         updates.fontSize = Math.max(5, Math.round(this.state.fontSize * scaleY));
-       }
-    }
-    return super.update(updates) as TextShapeElement;
+    return super.update(props) as TextShapeElement;
   }
 
   clone(): TextShapeElement {
