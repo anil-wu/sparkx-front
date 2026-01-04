@@ -202,7 +202,7 @@ export default function CanvasArea({
                   element={selectedElement}
                   onUpdate={handleUpdate}
                   onDownload={() => {
-                    console.log('Download', selectedElement);
+                    // TODO: Implement download
                   }}
                 />
               </div>
@@ -228,7 +228,7 @@ export default function CanvasArea({
                     element={selectedElement}
                     onUpdate={handleUpdate}
                     onDownload={() => {
-                      console.log('Download', selectedElement);
+                      // TODO: Implement download
                     }}
                   />
                 ) : (
@@ -236,7 +236,7 @@ export default function CanvasArea({
                     element={selectedElement}
                     onUpdate={handleUpdate}
                     onDownload={() => {
-                      console.log('Download', selectedElement);
+                      // TODO: Implement download
                     }}
                   />
                 )
@@ -245,7 +245,7 @@ export default function CanvasArea({
                   element={selectedElement}
                   onUpdate={handleUpdate}
                   onDownload={() => {
-                    console.log('Download', selectedElement);
+                    // TODO: Implement download
                   }}
                 />
               )}

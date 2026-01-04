@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, Settings, Download, ChevronDown, SlidersHorizontal, Pencil } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Download, ChevronDown, SlidersHorizontal, Pencil } from 'lucide-react';
 import { BaseElement } from '../../../types/BaseElement';
 import { StrokePanel } from '../shared/StrokePanel';
 import { TextAdvancedPanel } from './AdvancedPanel';
