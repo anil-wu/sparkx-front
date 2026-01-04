@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { Download, Spline, Slash } from 'lucide-react';
-import { BaseElement } from '../../../types/BaseElement';
+import { BaseElement } from '../../../../types/BaseElement';
 import { StrokePanel } from '../shared/StrokePanel';
 
 interface DrawSelectionToolbarProps {
-  element: BaseElement;
+  element: BaseElement<any>;
   onUpdate: (updates: Partial<any>) => void;
   onDownload?: () => void;
 }
 
-export default function PenSelectionToolbar({ element, onUpdate, onDownload }: DrawSelectionToolbarProps) {
+export default function DrawSelectionToolbar({ element, onUpdate, onDownload }: DrawSelectionToolbarProps) {
   const [showStrokePanel, setShowStrokePanel] = useState(false);
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
 

@@ -6,10 +6,8 @@ import ToolsPanel from './editor/ToolsPanel';
 import { ToolType } from './types/ToolType';
 import ImageInspectorBar from './editor/tools/image/InspectorBar';
 import ShapeInspectorBar from './editor/tools/shape/InspectorBar';
-import PencilInspectorBar from './editor/tools/pencil/InspectorBar';
-import PenInspectorBar from './editor/tools/pen/InspectorBar';
-import PencilSelectionToolbar from './editor/tools/pencil/SelectionToolBar';
-import PenSelectionToolbar from './editor/tools/pen/SelectionToolBar';
+import DrawInspectorBar from './editor/tools/shared/DrawInspectorBar';
+import DrawSelectionToolbar from './editor/tools/shared/DrawSelectionToolbar';
 import TextInspectorBar from './editor/tools/text/InspectorBar';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
@@ -86,6 +84,31 @@ export default function CanvasArea({
   const handleZoomIn = () => setZoom(z => Math.min(z * 1.1, 3));
   const handleZoomOut = () => setZoom(z => Math.max(z / 1.1, 0.1));
 
+  const renderDrawInspector = () => {
+    if (!['pencil', 'pen'].includes(activeTool)) return null;
+
+    const selectedElement = selectedId ? elements.find(e => e.id === selectedId) : null;
+    const isMatchingElement = selectedElement && selectedElement.type === activeTool;
+    
+    const element = isMatchingElement ? selectedElement : drawingStyle;
+    
+    const handleUpdate = (updates: any) => {
+        setDrawingStyle(prev => ({ ...prev, ...updates }));
+        if (isMatchingElement) {
+            updateElement(selectedId!, updates);
+        }
+    };
+
+    return (
+        <div className="absolute z-50 left-1/2 top-4 -translate-x-1/2">
+            <DrawInspectorBar
+                element={element as any}
+                onUpdate={handleUpdate}
+            />
+        </div>
+    );
+  };
+
   return (
     <div 
       className="flex-1 relative bg-[#fafafa] overflow-hidden"
@@ -113,55 +136,7 @@ export default function CanvasArea({
       )}
 
       {/* Persistent InspectorBar when in pencil/pen mode */}
-      {['pencil', 'pen'].includes(activeTool) && (
-        <div className="absolute z-50 left-1/2 top-4 -translate-x-1/2">
-           {activeTool === 'pencil' ? (
-             <PencilInspectorBar 
-                element={(() => {
-                    if (selectedId) {
-                        const el = elements.find(e => e.id === selectedId);
-                        if (el && el.type === 'pencil') {
-                            return el;
-                        }
-                    }
-                    return drawingStyle as any;
-                })()}
-                onUpdate={(updates) => {
-                    setDrawingStyle(prev => ({ ...prev, ...updates }));
-                    
-                    if (selectedId) {
-                        const el = elements.find(e => e.id === selectedId);
-                        if (el && el.type === 'pencil') {
-                            updateElement(selectedId, updates);
-                        }
-                    }
-                }}
-             />
-           ) : (
-             <PenInspectorBar 
-                element={(() => {
-                    if (selectedId) {
-                        const el = elements.find(e => e.id === selectedId);
-                        if (el && el.type === 'pen') {
-                            return el;
-                        }
-                    }
-                    return drawingStyle as any;
-                })()}
-                onUpdate={(updates) => {
-                    setDrawingStyle(prev => ({ ...prev, ...updates }));
-                    
-                    if (selectedId) {
-                        const el = elements.find(e => e.id === selectedId);
-                        if (el && el.type === 'pen') {
-                            updateElement(selectedId, updates);
-                        }
-                    }
-                }}
-             />
-           )}
-        </div>
-      )}
+      {renderDrawInspector()}
 
       {selectedId && (() => {
         const selectedElement = elements.find(el => el.id === selectedId);
@@ -223,23 +198,13 @@ export default function CanvasArea({
               {isImage ? (
                 <ImageInspectorBar />
               ) : isDraw ? (
-                selectedElement.type === 'pencil' ? (
-                  <PencilSelectionToolbar 
+                  <DrawSelectionToolbar 
                     element={selectedElement}
                     onUpdate={handleUpdate}
                     onDownload={() => {
                       // TODO: Implement download
                     }}
                   />
-                ) : (
-                  <PenSelectionToolbar 
-                    element={selectedElement}
-                    onUpdate={handleUpdate}
-                    onDownload={() => {
-                      // TODO: Implement download
-                    }}
-                  />
-                )
               ) : (
                 <ShapeInspectorBar 
                   element={selectedElement}

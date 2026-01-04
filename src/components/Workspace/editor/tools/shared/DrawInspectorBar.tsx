@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { AlignJustify, Download } from 'lucide-react';
-import { BaseElement } from '../../../types/BaseElement';
+import { BaseElement } from '../../../../types/BaseElement';
 import { StrokePanel } from '../shared/StrokePanel';
 
-interface PenInspectorBarProps {
+interface DrawInspectorBarProps {
   element: BaseElement<any> | { stroke?: string; strokeWidth?: number };
   onUpdate: (updates: Partial<any>) => void;
   onDownload?: () => void;
 }
 
-export default function PenInspectorBar({ element, onUpdate, onDownload }: PenInspectorBarProps) {
+export default function DrawInspectorBar({ element, onUpdate, onDownload }: DrawInspectorBarProps) {
   const [showStrokePanel, setShowStrokePanel] = useState(false);
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
 
