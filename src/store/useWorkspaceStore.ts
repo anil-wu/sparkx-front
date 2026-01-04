@@ -3,19 +3,23 @@ import { temporal, TemporalState } from 'zundo';
 import { BaseElement, ElementFactory } from '../components/workspace/types/BaseElement';
 import { ToolType } from '../components/workspace/types/ToolType';
 import { ElementState } from '../components/workspace/types/ElementState';
+import { Guideline } from '../components/workspace/types/Guideline';
 
 interface WorkspaceState {
   elements: BaseElement<any>[];
   selectedId: string | null;
   activeTool: ToolType;
+  guidelines: Guideline[];
   
   // Actions
   setElements: (elements: BaseElement<any>[]) => void;
   selectElement: (id: string | null) => void;
   setActiveTool: (tool: ToolType) => void;
+  setGuidelines: (guidelines: Guideline[]) => void;
   addElement: (element: BaseElement<any>) => void;
   updateElement: (id: string, updates: Partial<ElementState>) => void;
   removeElement: (id: string) => void;
+  duplicateElement: (id: string) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -44,7 +48,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         
         setActiveTool: (tool) => set({ activeTool: tool }),
 
-        setGuidelines: (guidelines) => set({ guidelines }),
+        setGuidelines: (guidelines: Guideline[]) => set({ guidelines }),
         
         addElement: (element) => set((state) => ({ 
           elements: [...state.elements, element] 
@@ -61,7 +65,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           selectedId: state.selectedId === id ? null : state.selectedId
         })),
 
-        duplicateElement: (id) => set((state) => {
+        duplicateElement: (id: string) => set((state) => {
           const element = state.elements.find((el) => el.id === id);
           if (!element) return {};
 

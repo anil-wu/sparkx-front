@@ -8,6 +8,7 @@ import {
   BaseElement as BaseElementModel, 
   DrawElement as DrawElementModel
 } from './types/BaseElement';
+import { Guideline } from './types/Guideline';
 
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 
@@ -149,20 +150,20 @@ export default function EditorStage({
         
         // Find if we clicked on an element
         // We look up the tree to find a node with an ID that matches an element
-        let target = e.target;
+        let target: Konva.Node = e.target;
         let elementId: string | undefined;
 
         // Try to find the group id
         while (target && target !== target.getStage()) {
-            if (target.id() && elements.some(el => el.id === target.id())) {
-                elementId = target.id();
-                break;
-            }
-            if (target.parent) {
-                target = target.parent;
-            } else {
-                break;
-            }
+          if (target.id() && elements.some(el => el.id === target.id())) {
+            elementId = target.id();
+            break;
+          }
+          if (target.parent) {
+            target = target.parent;
+          } else {
+            break;
+          }
         }
 
         onContextMenu?.(e, elementId);
@@ -229,7 +230,7 @@ export default function EditorStage({
         />
         
         {/* Alignment Guidelines */}
-        {guidelines.map((line) => (
+        {guidelines.map((line: Guideline) => (
           <Line
             key={line.id}
             points={[line.x1, line.y1, line.x2, line.y2]}
