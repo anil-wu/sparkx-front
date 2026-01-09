@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, forwardRef } from 'react';
 import { Stage, Layer, Transformer, Circle, Line } from 'react-konva';
 import { ToolType } from './types/ToolType';
 import Konva from 'konva';
@@ -29,9 +29,10 @@ interface EditorStageProps {
   onToolChange?: (tool: ToolType) => void;
   drawingStyle?: { stroke: string; strokeWidth: number };
   onContextMenu?: (e: Konva.KonvaEventObject<PointerEvent>, elementId?: string) => void;
+  onStageReady?: (stage: Konva.Stage | null) => void;
 }
 
-export default function EditorStage({
+const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
   activeTool,
   onToolUsed,
   zoom,
@@ -42,7 +43,8 @@ export default function EditorStage({
   onToolChange,
   drawingStyle,
   onContextMenu,
-}: EditorStageProps) {
+  onStageReady,
+}, ref) => {
   const { elements, selectedId, guidelines, setGuidelines } = useWorkspaceStore();
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -129,7 +131,17 @@ export default function EditorStage({
 
   return (
     <Stage
-      ref={stageRef}
+      ref={(node) => {
+        (stageRef as any).current = node;
+        
+        if (typeof ref === 'function') {
+          ref(node);
+        } else if (ref) {
+          (ref as React.MutableRefObject<Konva.Stage | null>).current = node;
+        }
+
+        onStageReady?.(node);
+      }}
       width={width}
       height={height}
       scaleX={zoom}
@@ -254,4 +266,7 @@ export default function EditorStage({
       </Layer>
     </Stage>
   );
-}
+});
+
+EditorStage.displayName = 'EditorStage';
+export default EditorStage;

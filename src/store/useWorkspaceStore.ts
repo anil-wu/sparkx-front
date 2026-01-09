@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { temporal, TemporalState } from 'zundo';
-import { BaseElement, ElementFactory } from '../components/workspace/types/BaseElement';
-import { ToolType } from '../components/workspace/types/ToolType';
-import { ElementState } from '../components/workspace/types/ElementState';
-import { Guideline } from '../components/workspace/types/Guideline';
+import { BaseElement, ElementFactory } from '../components/Workspace/types/BaseElement';
+import { ToolType } from '../components/Workspace/types/ToolType';
+import { ElementState } from '../components/Workspace/types/ElementState';
+import { Guideline } from '../components/Workspace/types/Guideline';
 
 interface WorkspaceState {
   elements: BaseElement<any>[];

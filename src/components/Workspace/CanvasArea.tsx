@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import Konva from 'konva';
 import ToolsPanel from './editor/ToolsPanel';
-import { ToolType } from './types/ToolType';
 import ImageInspectorBar from './editor/tools/image/InspectorBar';
 import ShapeInspectorBar from './editor/tools/shape/InspectorBar';
 import DrawInspectorBar from './editor/tools/shared/DrawInspectorBar';
@@ -25,13 +25,48 @@ export default function CanvasArea({
   isSidebarCollapsed, 
 }: CanvasAreaProps) {
   const { elements, selectedId, updateElement, activeTool, setActiveTool } = useWorkspaceStore();
-  // Local state for zoom and dragging
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [drawingStyle, setDrawingStyle] = useState({ stroke: '#000000', strokeWidth: 2 });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; elementId: string | null } | null>(null);
+
+  const [stageInstance, setStageInstance] = useState<Konva.Stage | null>(null);
+
+  const triggerDownload = useCallback((filename: string, href: string) => {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = href;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, []);
+
+  const handleDownload = useCallback(() => {
+    if (!selectedId) {
+      console.error('Download failed: No selected element');
+      return;
+    }
+
+    if (!stageInstance) {
+      console.error('Download failed: Stage not ready');
+      return;
+    }
+
+    try {
+      const node = stageInstance.findOne('#' + selectedId);
+      if (!node) {
+        console.error('Download failed: Selected node not found');
+        return;
+      }
+
+      const dataURL = node.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
+      triggerDownload(`element-${selectedId}.png`, dataURL);
+    } catch (error) {
+      console.error('Error during download:', error);
+    }
+  }, [selectedId, stageInstance, triggerDownload]);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -131,6 +166,7 @@ export default function CanvasArea({
             <DrawInspectorBar
                 element={element as any}
                 onUpdate={handleUpdate}
+                onDownload={isMatchingElement ? handleDownload : undefined}
             />
         </div>
     );
@@ -150,6 +186,7 @@ export default function CanvasArea({
       {/* Canvas Stage Layer */}
       {dimensions.width > 0 && dimensions.height > 0 && (
         <EditorStage 
+          onStageReady={setStageInstance}
           activeTool={activeTool}
           onToolUsed={() => {}}
           onToolChange={setActiveTool}
@@ -222,9 +259,7 @@ export default function CanvasArea({
                 <TextInspectorBar 
                   element={selectedElement}
                   onUpdate={handleUpdate}
-                  onDownload={() => {
-                    // TODO: Implement download
-                  }}
+                  onDownload={handleDownload}
                 />
               </div>
             </div>
@@ -247,17 +282,13 @@ export default function CanvasArea({
                   <DrawSelectionToolbar 
                     element={selectedElement}
                     onUpdate={handleUpdate}
-                    onDownload={() => {
-                      // TODO: Implement download
-                    }}
+                    onDownload={handleDownload}
                   />
               ) : (
                 <ShapeInspectorBar 
                   element={selectedElement}
                   onUpdate={handleUpdate}
-                  onDownload={() => {
-                    // TODO: Implement download
-                  }}
+                  onDownload={handleDownload}
                 />
               )}
             </div>
