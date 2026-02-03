@@ -19,6 +19,8 @@ import {
   Zap,
 } from "lucide-react";
 
+import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
+import { useI18n } from "@/i18n/client";
 import { authClient } from "@/lib/auth-client";
 import styles from "./LoginForm.module.css";
 
@@ -33,6 +35,7 @@ const REDIRECT_AFTER_AUTH = "/";
 
 export default function LoginForm() {
   const router = useRouter();
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("login");
   const [message, setMessage] = useState<Message | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
@@ -75,7 +78,7 @@ export default function LoginForm() {
     if (!value) {
       return {
         score: 0,
-        label: "密码强度",
+        label: t("login.password_strength"),
       };
     }
 
@@ -85,12 +88,20 @@ export default function LoginForm() {
     if (/\d/.test(value)) score += 1;
     if (/[^a-zA-Z\d]/.test(value)) score += 1;
 
-    const labels = ["密码强度", "太弱", "弱", "中等", "强"];
+    const labels = [
+      t("login.password_strength"),
+      t("login.password_strength_very_weak"),
+      t("login.password_strength_weak"),
+      t("login.password_strength_medium"),
+      t("login.password_strength_strong"),
+    ];
+
     return {
       score,
-      label: labels[score] ?? "密码强度",
+      label:
+        score === 0 ? labels[1] : labels[score] ?? t("login.password_strength"),
     };
-  }, [registerPassword]);
+  }, [registerPassword, t]);
 
   const strengthColor = useMemo(() => {
     if (passwordStrength.score <= 1) return "bg-red-500";
@@ -117,7 +128,7 @@ export default function LoginForm() {
         if (result?.error) {
           setMessage({
             type: "error",
-            text: result.error.message ?? "Google 登录失败，请重试。",
+            text: result.error.message ?? t("login.google_signin_failed"),
           });
           setPendingAction(null);
         }
@@ -128,7 +139,7 @@ export default function LoginForm() {
   const handleApple = () => {
     setMessage({
       type: "info",
-      text: "Apple 登录功能即将上线。",
+      text: t("login.apple_coming_soon"),
     });
   };
 
@@ -139,7 +150,7 @@ export default function LoginForm() {
     if (!loginEmail.trim() || !loginPassword) {
       setMessage({
         type: "error",
-        text: "请输入邮箱和密码。",
+        text: t("login.error_missing_email_password"),
       });
       return;
     }
@@ -157,7 +168,7 @@ export default function LoginForm() {
         if (result?.error) {
           setMessage({
             type: "error",
-            text: result.error.message ?? "登录失败，请重试。",
+            text: result.error.message ?? t("login.error_login_failed"),
           });
           setPendingAction(null);
           return;
@@ -165,7 +176,7 @@ export default function LoginForm() {
 
         setMessage({
           type: "success",
-          text: "登录成功，正在跳转...",
+          text: t("login.success_login_redirect"),
         });
         router.push(REDIRECT_AFTER_AUTH);
         router.refresh();
@@ -180,7 +191,7 @@ export default function LoginForm() {
     if (registerName.trim().length < 2) {
       setMessage({
         type: "error",
-        text: "用户名至少 2 个字符。",
+        text: t("login.error_username_too_short"),
       });
       return;
     }
@@ -188,7 +199,7 @@ export default function LoginForm() {
     if (registerPassword.length < 8) {
       setMessage({
         type: "error",
-        text: "密码至少 8 位。",
+        text: t("login.error_password_too_short"),
       });
       return;
     }
@@ -196,7 +207,7 @@ export default function LoginForm() {
     if (registerPassword !== registerConfirmPassword) {
       setMessage({
         type: "error",
-        text: "两次输入的密码不一致。",
+        text: t("login.error_password_mismatch"),
       });
       return;
     }
@@ -204,7 +215,7 @@ export default function LoginForm() {
     if (!agreeTerms) {
       setMessage({
         type: "error",
-        text: "请先同意使用条款与隐私政策。",
+        text: t("login.error_terms_required"),
       });
       return;
     }
@@ -222,7 +233,7 @@ export default function LoginForm() {
         if (result?.error) {
           setMessage({
             type: "error",
-            text: result.error.message ?? "注册失败，请重试。",
+            text: result.error.message ?? t("login.error_register_failed"),
           });
           setPendingAction(null);
           return;
@@ -239,7 +250,7 @@ export default function LoginForm() {
         window.history.replaceState(null, "", window.location.pathname);
         setMessage({
           type: "success",
-          text: "账号创建成功，请登录。",
+          text: t("login.success_account_created"),
         });
         setPendingAction(null);
       })();
@@ -265,6 +276,10 @@ export default function LoginForm() {
         ))}
       </div>
 
+      <div className="absolute right-4 top-4 z-50">
+        <LanguageSwitcher />
+      </div>
+
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center space-x-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-yellow-400">
@@ -288,7 +303,7 @@ export default function LoginForm() {
                 mode === "login" ? styles.tabActive : styles.tabInactive
               }`}
             >
-              登录
+              {t("login.tab_login")}
             </button>
             <button
               type="button"
@@ -297,7 +312,7 @@ export default function LoginForm() {
                 mode === "register" ? styles.tabActive : styles.tabInactive
               }`}
             >
-              注册账号
+              {t("login.tab_register")}
             </button>
           </div>
 
@@ -306,10 +321,10 @@ export default function LoginForm() {
               <form className="space-y-5" onSubmit={handleLogin}>
                 <div className="mb-6 text-center">
                   <h2 className="mb-2 text-2xl font-semibold text-gray-900">
-                    欢迎回来
+                    {t("login.welcome_back")}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    登录以继续您的创作之旅
+                    {t("login.signin_subtitle")}
                   </p>
                 </div>
 
@@ -369,7 +384,7 @@ export default function LoginForm() {
                 <div className="relative flex items-center justify-center">
                   <div className="flex-1 border-t border-gray-200" />
                   <span className="bg-transparent px-3 text-xs text-gray-400">
-                    或使用邮箱
+                    {t("login.or_email")}
                   </span>
                   <div className="flex-1 border-t border-gray-200" />
                 </div>
@@ -391,7 +406,7 @@ export default function LoginForm() {
                     className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3.5 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
                   />
                   <label htmlFor="login-email" className={styles.floatingLabel}>
-                    电子邮箱
+                    {t("login.email")}
                   </label>
                 </div>
 
@@ -412,13 +427,17 @@ export default function LoginForm() {
                     className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3.5 pr-10 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
                   />
                   <label htmlFor="login-password" className={styles.floatingLabel}>
-                    密码
+                    {t("login.password")}
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowLoginPassword((prev) => !prev)}
                     className="absolute right-3 top-3.5 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
-                    aria-label={showLoginPassword ? "隐藏密码" : "显示密码"}
+                    aria-label={
+                      showLoginPassword
+                        ? t("login.hide_password")
+                        : t("login.show_password")
+                    }
                   >
                     {showLoginPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -437,7 +456,7 @@ export default function LoginForm() {
                       className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                     />
                     <span className="text-gray-600 transition-colors group-hover:text-gray-800">
-                      记住我
+                      {t("login.remember_me")}
                     </span>
                   </label>
                   <button
@@ -445,12 +464,12 @@ export default function LoginForm() {
                     onClick={() =>
                       setMessage({
                         type: "info",
-                        text: "忘记密码功能即将上线。",
+                        text: t("login.forgot_password_coming_soon"),
                       })
                     }
                     className="cursor-pointer font-medium text-orange-600 transition-colors hover:text-orange-700"
                   >
-                    忘记密码？
+                    {t("login.forgot_password")}
                   </button>
                 </div>
 
@@ -462,16 +481,16 @@ export default function LoginForm() {
                   {isLoginSubmitting ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
-                      <span>登录中...</span>
+                      <span>{t("login.signing_in")}</span>
                     </>
                   ) : message?.type === "success" ? (
                     <>
                       <Check className="h-5 w-5" />
-                      <span>登录成功</span>
+                      <span>{t("login.signed_in")}</span>
                     </>
                   ) : (
                     <>
-                      <span>登录</span>
+                      <span>{t("login.sign_in")}</span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -481,9 +500,11 @@ export default function LoginForm() {
               <form className="space-y-4" onSubmit={handleRegister}>
                 <div className="mb-6 text-center">
                   <h2 className="mb-2 text-2xl font-semibold text-gray-900">
-                    创建账号
+                    {t("login.create_account_title")}
                   </h2>
-                  <p className="text-sm text-gray-500">加入 SparkX 开始创新之旅</p>
+                  <p className="text-sm text-gray-500">
+                    {t("login.create_account_subtitle")}
+                  </p>
                 </div>
 
                 <div className="relative">
@@ -503,7 +524,7 @@ export default function LoginForm() {
                     className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
                   />
                   <label htmlFor="reg-username" className={styles.floatingLabel}>
-                    用户名
+                    {t("login.username")}
                   </label>
                 </div>
 
@@ -524,7 +545,7 @@ export default function LoginForm() {
                     className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
                   />
                   <label htmlFor="reg-email" className={styles.floatingLabel}>
-                    电子邮箱
+                    {t("login.email")}
                   </label>
                 </div>
 
@@ -545,13 +566,17 @@ export default function LoginForm() {
                     className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 pr-10 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
                   />
                   <label htmlFor="reg-password" className={styles.floatingLabel}>
-                    设置密码
+                    {t("login.set_password")}
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowRegisterPassword((prev) => !prev)}
                     className="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
-                    aria-label={showRegisterPassword ? "隐藏密码" : "显示密码"}
+                    aria-label={
+                      showRegisterPassword
+                        ? t("login.hide_password")
+                        : t("login.show_password")
+                    }
                   >
                     {showRegisterPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -577,7 +602,9 @@ export default function LoginForm() {
                         ))}
                       </div>
                       <p className="text-xs text-gray-500">
-                        密码强度: {passwordStrength.label}
+                        {t("login.password_strength_with_label", {
+                          label: passwordStrength.label,
+                        })}
                       </p>
                     </div>
                   )}
@@ -600,7 +627,7 @@ export default function LoginForm() {
                     className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 pr-10 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
                   />
                   <label htmlFor="reg-confirm" className={styles.floatingLabel}>
-                    确认密码
+                    {t("login.confirm_password")}
                   </label>
                   <button
                     type="button"
@@ -609,7 +636,9 @@ export default function LoginForm() {
                     }
                     className="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
                     aria-label={
-                      showRegisterConfirmPassword ? "隐藏密码" : "显示密码"
+                      showRegisterConfirmPassword
+                        ? t("login.hide_password")
+                        : t("login.show_password")
                     }
                   >
                     {showRegisterConfirmPassword ? (
@@ -628,19 +657,19 @@ export default function LoginForm() {
                     className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                   />
                   <span className="text-xs leading-relaxed text-gray-500">
-                    我已阅读并同意
+                    {t("login.terms_prefix")}
                     <button
                       type="button"
                       className="ml-1 cursor-pointer text-orange-600 hover:underline"
                     >
-                      使用条款
+                      {t("login.terms_of_use")}
                     </button>
-                    和
+                    {t("login.and")}
                     <button
                       type="button"
                       className="ml-1 cursor-pointer text-orange-600 hover:underline"
                     >
-                      隐私政策
+                      {t("login.privacy_policy")}
                     </button>
                   </span>
                 </label>
@@ -653,11 +682,11 @@ export default function LoginForm() {
                   {isRegisterSubmitting ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
-                      <span>创建中...</span>
+                      <span>{t("login.creating")}</span>
                     </>
                   ) : (
                     <>
-                      <span>创建账号</span>
+                      <span>{t("login.create_account")}</span>
                       <UserPlus className="h-4 w-4" />
                     </>
                   )}
@@ -688,20 +717,20 @@ export default function LoginForm() {
 
             <div className="border-t border-gray-100 pt-2 text-center">
               <p className="text-xs text-gray-400">
-                受 reCAPTCHA 保护并适用
+                {t("login.recaptcha_protected")}
                 <br />
                 <button
                   type="button"
                   className="cursor-pointer hover:text-gray-600"
                 >
-                  隐私政策
+                  {t("login.privacy_policy")}
                 </button>
-                {" 和 "}
+                {t("login.and")}
                 <button
                   type="button"
                   className="cursor-pointer hover:text-gray-600"
                 >
-                  服务条款
+                  {t("login.terms_of_service")}
                 </button>
               </p>
             </div>
@@ -714,7 +743,7 @@ export default function LoginForm() {
             className="inline-flex items-center space-x-2 text-sm text-gray-400 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>返回首页</span>
+            <span>{t("login.back_home")}</span>
           </Link>
         </div>
       </div>

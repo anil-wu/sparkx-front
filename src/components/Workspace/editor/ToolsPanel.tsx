@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { MousePointer2, Square, Circle, Type, Pencil, Image as ImageIcon, Triangle, Star, MessageCircle, PenTool, Hand } from 'lucide-react';
 import { ToolType } from '../types/ToolType';
+import { useI18n } from '@/i18n/client';
 
 interface ToolsPanelProps {
   isSidebarCollapsed: boolean;
@@ -11,6 +12,7 @@ interface ToolsPanelProps {
 }
 
 export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChange }: ToolsPanelProps) {
+  const { t } = useI18n();
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const [showPenMenu, setShowPenMenu] = useState(false);
   const [showSelectMenu, setShowSelectMenu] = useState(false);
@@ -50,13 +52,13 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
   ];
   
   const pens = [
-    { id: 'pencil', icon: <Pencil size={20} />, label: '铅笔', shortcut: 'Shift + P' },
-    { id: 'pen', icon: <PenTool size={20} />, label: '钢笔', shortcut: 'P' },
+    { id: 'pencil', icon: <Pencil size={20} />, label: t('tools.pencil'), shortcut: 'Shift + P' },
+    { id: 'pen', icon: <PenTool size={20} />, label: t('tools.pen'), shortcut: 'P' },
   ];
 
   const selectTools = [
-    { id: 'select', icon: <MousePointer2 size={20} />, label: 'Select', shortcut: 'V' },
-    { id: 'hand', icon: <Hand size={20} />, label: 'Hand tool', shortcut: 'H' },
+    { id: 'select', icon: <MousePointer2 size={20} />, label: t('tools.select'), shortcut: 'V' },
+    { id: 'hand', icon: <Hand size={20} />, label: t('tools.hand_tool'), shortcut: 'H' },
   ];
 
   const openMenu = (menuType: 'select' | 'shape' | 'pen' | null) => {
@@ -209,7 +211,7 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
           onMouseLeave={closeMenu}
         >
           <div>
-            <div className="text-xs text-gray-500 mb-2">形状</div>
+            <div className="text-xs text-gray-500 mb-2">{t('tools.shape')}</div>
             <div className="flex flex-wrap gap-2">
               {shapes.map((shape) => (
                 <button
@@ -229,7 +231,7 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
           </div>
           
           <div>
-            <div className="text-xs text-gray-500 mb-2">形状文本</div>
+            <div className="text-xs text-gray-500 mb-2">{t('tools.shape_text')}</div>
             <div className="flex flex-wrap gap-2">
               <button
                  onClick={() => handleShapeSelect('rectangle-text')}

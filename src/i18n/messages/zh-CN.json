@@ -1,0 +1,128 @@
+{
+  "app": {
+    "title": "角色设计编辑器",
+    "description": "角色设计编辑器"
+  },
+  "i18n": {
+    "language": "语言",
+    "zh": "中文",
+    "en": "English",
+    "switch_to": "切换为 {language}"
+  },
+  "auth": {
+    "signed_in": "已登录",
+    "sign_out": "退出",
+    "signing_out": "退出中..."
+  },
+  "login": {
+    "tab_login": "登录",
+    "tab_register": "注册账号",
+    "welcome_back": "欢迎回来",
+    "signin_subtitle": "登录以继续您的创作之旅",
+    "google_signin_failed": "Google 登录失败，请重试。",
+    "apple_coming_soon": "Apple 登录功能即将上线。",
+    "or_email": "或使用邮箱",
+    "email": "电子邮箱",
+    "password": "密码",
+    "hide_password": "隐藏密码",
+    "show_password": "显示密码",
+    "remember_me": "记住我",
+    "forgot_password": "忘记密码？",
+    "forgot_password_coming_soon": "忘记密码功能即将上线。",
+    "signing_in": "登录中...",
+    "signed_in": "登录成功",
+    "sign_in": "登录",
+    "create_account_title": "创建账号",
+    "create_account_subtitle": "加入 SparkX 开始创新之旅",
+    "username": "用户名",
+    "set_password": "设置密码",
+    "password_strength": "密码强度",
+    "password_strength_very_weak": "太弱",
+    "password_strength_weak": "弱",
+    "password_strength_medium": "中等",
+    "password_strength_strong": "强",
+    "password_strength_with_label": "密码强度: {label}",
+    "confirm_password": "确认密码",
+    "terms_prefix": "我已阅读并同意",
+    "terms_of_use": "使用条款",
+    "privacy_policy": "隐私政策",
+    "and": "和",
+    "creating": "创建中...",
+    "create_account": "创建账号",
+    "recaptcha_protected": "受 reCAPTCHA 保护并适用",
+    "terms_of_service": "服务条款",
+    "back_home": "返回首页",
+    "error_missing_email_password": "请输入邮箱和密码。",
+    "error_login_failed": "登录失败，请重试。",
+    "success_login_redirect": "登录成功，正在跳转...",
+    "error_username_too_short": "用户名至少 2 个字符。",
+    "error_password_too_short": "密码至少 8 位。",
+    "error_password_mismatch": "两次输入的密码不一致。",
+    "error_terms_required": "请先同意使用条款与隐私政策。",
+    "error_register_failed": "注册失败，请重试。",
+    "success_account_created": "账号创建成功，请登录。"
+  },
+  "workspace": {
+    "layers": "图层",
+    "project": "项目",
+    "editor": "编辑",
+    "game": "游戏"
+  },
+  "hierarchy": {
+    "title": "图层 ({count})",
+    "empty": "暂无图层",
+    "unlock": "解锁",
+    "lock": "锁定",
+    "hide": "隐藏",
+    "show": "显示"
+  },
+  "project": {
+    "assets": "项目资源",
+    "search_placeholder": "搜索..."
+  },
+  "tools": {
+    "shape": "形状",
+    "shape_text": "形状文本",
+    "pencil": "铅笔",
+    "pen": "钢笔",
+    "select": "选择",
+    "hand_tool": "抓手"
+  },
+  "chat": {
+    "title": "生成图中形象的三视图",
+    "image_analysis": "图片分析",
+    "generating_pose_intro": "现在我将生成角色的端正战力姿势（双手垂直站立）：",
+    "pose_title": "角色端正战力姿势",
+    "done_message": "完成！我已经为您生成了角色的端正战力姿势，双手垂直自然下垂，展现了稳定的站立姿态。",
+    "task_complete": "Meatai 已完成当前任务",
+    "based_on": "在基于",
+    "prompt_preview": "角色端正战...",
+    "generate_three_view_white_bg": "生成三视图，背景白色",
+    "followup_message": "我来为您生成这个端正战力姿势角色的三视图，背景设为白色。",
+    "input_placeholder": "请输入你的设计需求"
+  },
+  "editor": {
+    "properties": "属性调整",
+    "corner_radius": "圆角",
+    "sides": "顶点",
+    "inner_radius": "内角半径",
+    "stroke": "描边",
+    "align_center": "居中"
+  },
+  "context": {
+    "copy": "复制",
+    "delete": "删除"
+  },
+  "history": {
+    "undo": "撤销 ({count})",
+    "redo": "重做 ({count})"
+  },
+  "inspector": {
+    "zoom_in": "放大",
+    "remove_bg": "移除背景",
+    "erase": "擦除",
+    "edit_element": "编辑元素",
+    "adjust_pose": "调整姿态",
+    "draw": "手绘"
+  }
+}

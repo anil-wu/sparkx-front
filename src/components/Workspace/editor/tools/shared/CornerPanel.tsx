@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useI18n } from '@/i18n/client';
 
 interface CornerPanelProps {
   cornerRadius: number;
@@ -16,6 +17,7 @@ export const CornerPanel = ({
   onUpdate, 
   onClose 
 }: CornerPanelProps) => {
+  const { t } = useI18n();
   const [value, setValue] = useState(cornerRadius);
   const [sidesValue, setSidesValue] = useState(sides || 3);
   const [innerRadiusValue, setInnerRadiusValue] = useState(starInnerRadius !== undefined ? starInnerRadius : 50);
@@ -58,7 +60,7 @@ export const CornerPanel = ({
       onTouchStart={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between mb-4">
-        <span className="font-medium text-gray-700">属性调整</span>
+        <span className="font-medium text-gray-700">{t('editor.properties')}</span>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
           <X size={16} />
         </button>
@@ -66,7 +68,7 @@ export const CornerPanel = ({
 
       {/* Corner Radius Slider */}
       <div className="flex items-center gap-3 mb-4">
-        <span className="text-sm text-gray-500 whitespace-nowrap w-16">圆角</span>
+        <span className="text-sm text-gray-500 whitespace-nowrap w-16">{t('editor.corner_radius')}</span>
         <input 
           type="range" 
           min="0" 
@@ -90,7 +92,7 @@ export const CornerPanel = ({
       {/* Sides Slider - Only show if sides prop is provided */}
       {sides !== undefined && (
         <div className="flex items-center gap-3 mb-4">
-          <span className="text-sm text-gray-500 whitespace-nowrap w-16">顶点</span>
+          <span className="text-sm text-gray-500 whitespace-nowrap w-16">{t('editor.sides')}</span>
           <input 
             type="range" 
             min="3" 
@@ -115,7 +117,7 @@ export const CornerPanel = ({
       {/* Inner Radius Slider */}
       {starInnerRadius !== undefined && (
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500 whitespace-nowrap w-16">内角半径</span>
+          <span className="text-sm text-gray-500 whitespace-nowrap w-16">{t('editor.inner_radius')}</span>
           <input 
             type="range" 
             min="0" 

@@ -3,15 +3,17 @@
 import React from 'react';
 import { BaseElement } from '../../../types/BaseElement';
 import { ZoomIn, Scissors, Eraser, Edit, Move, PenTool, MoreHorizontal, Settings2 } from 'lucide-react';
+import { useI18n } from '@/i18n/client';
 
 export default function ImageInspectorBar() {
+  const { t } = useI18n();
   const items = [
-    { icon: <ZoomIn size={18} />, label: "放大" },
-    { icon: <Scissors size={18} />, label: "移除背景" },
-    { icon: <Eraser size={18} />, label: "擦除" },
-    { icon: <Edit size={18} />, label: "编辑元素" },
-    { icon: <Move size={18} />, label: "调整姿态" },
-    { icon: <PenTool size={18} />, label: "手绘" },
+    { icon: <ZoomIn size={18} />, label: t("inspector.zoom_in") },
+    { icon: <Scissors size={18} />, label: t("inspector.remove_bg") },
+    { icon: <Eraser size={18} />, label: t("inspector.erase") },
+    { icon: <Edit size={18} />, label: t("inspector.edit_element") },
+    { icon: <Move size={18} />, label: t("inspector.adjust_pose") },
+    { icon: <PenTool size={18} />, label: t("inspector.draw") },
     { icon: <MoreHorizontal size={18} />, label: "" },
     { icon: <Settings2 size={18} />, label: "" },
   ];

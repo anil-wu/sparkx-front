@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ChevronRight, Eye, EyeOff, Lock, Unlock, ChevronUp, ChevronDown, Minimize2, Image as ImageIcon, Layers } from 'lucide-react';
 import { BaseElement } from '../types/BaseElement';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
+import { useI18n } from '@/i18n/client';
 
 interface HierarchyPanelProps {
   isCollapsed: boolean;
@@ -11,6 +12,7 @@ interface HierarchyPanelProps {
 }
 
 export default function HierarchyPanel({ isCollapsed, toggleSidebar }: HierarchyPanelProps) {
+  const { t } = useI18n();
   const store = useWorkspaceStore();
   const elements = store?.elements || [];
   const selectedId = store?.selectedId || null;
@@ -33,7 +35,9 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
       
       {/* Layers Header */}
       <div className="p-4 pb-2">
-        <span className="font-bold text-gray-800">图层 ({elements.length})</span>
+        <span className="font-bold text-gray-800">
+          {t("hierarchy.title", { count: elements.length })}
+        </span>
       </div>
       
       {/* Layers List */}
@@ -43,6 +47,7 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
             key={el.id}
             element={el}
             active={selectedId === el.id} 
+            t={t}
             onClick={() => selectElement(el.id)}
             onToggleVisible={(e) => {
               e.stopPropagation();
@@ -58,7 +63,9 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
           />
         ))}
         {elements.length === 0 && (
-           <div className="text-center text-gray-400 text-sm py-4">暂无图层</div>
+           <div className="text-center text-gray-400 text-sm py-4">
+             {t("hierarchy.empty")}
+           </div>
         )}
       </div>
 
@@ -78,12 +85,14 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
 function LayerItem({ 
   element, 
   active, 
+  t,
   onClick,
   onToggleVisible,
   onToggleLock
 }: { 
   element: BaseElement<any>, 
   active: boolean, 
+  t: (key: string, values?: Record<string, string | number>) => string;
   onClick: () => void,
   onToggleVisible: (e: React.MouseEvent) => void,
   onToggleLock: (e: React.MouseEvent) => void
@@ -123,7 +132,7 @@ function LayerItem({
           className={`p-1 rounded-md hover:bg-gray-200 text-gray-400 transition-colors
             ${element.locked ? 'text-orange-500 opacity-100' : 'opacity-0 group-hover:opacity-100'}
           `}
-          title={element.locked ? "解锁" : "锁定"}
+          title={element.locked ? t("hierarchy.unlock") : t("hierarchy.lock")}
         >
           {element.locked ? <Lock size={14} /> : <Unlock size={14} />}
         </div>
@@ -132,7 +141,7 @@ function LayerItem({
           className={`p-1 rounded-md hover:bg-gray-200 text-gray-400 transition-colors
             ${!element.visible ? 'text-gray-500 opacity-100' : 'opacity-0 group-hover:opacity-100'}
           `}
-          title={element.visible ? "隐藏" : "显示"}
+          title={element.visible ? t("hierarchy.hide") : t("hierarchy.show")}
         >
           {element.visible ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Trash2, Copy } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
+import { useI18n } from '@/i18n/client';
 
 interface ContextMenuProps {
   x: number;
@@ -10,6 +11,7 @@ interface ContextMenuProps {
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, elementId, onClose }) => {
+  const { t } = useI18n();
   const { removeElement, duplicateElement } = useWorkspaceStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -56,14 +58,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, elementId, onClo
         className="w-full px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
       >
         <Copy size={16} />
-        复制
+        {t('context.copy')}
       </button>
       <button 
         onClick={handleDelete}
         className="w-full px-3 py-2 text-sm text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
       >
         <Trash2 size={16} />
-        删除
+        {t('context.delete')}
       </button>
     </div>
   );

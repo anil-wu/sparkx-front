@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, AlignCenter, ChevronDown, Pipette } from 'lucide-react';
+import { useI18n } from '@/i18n/client';
 
 // Helper to get hex from color string (handles basic hex)
 const getHex = (color: string) => {
@@ -20,6 +21,7 @@ export const StrokePanel = ({
   onUpdate, 
   onClose 
 }: StrokePanelProps) => {
+  const { t } = useI18n();
   const [hex, setHex] = useState(stroke ? getHex(stroke) : '#000000');
   const [opacity, setOpacity] = useState(100);
   
@@ -42,7 +44,7 @@ export const StrokePanel = ({
   return (
     <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 w-[280px] p-4 z-50">
       <div className="flex items-center justify-between mb-4">
-        <span className="font-medium text-gray-700">描边</span>
+        <span className="font-medium text-gray-700">{t('editor.stroke')}</span>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
           <X size={16} />
         </button>
@@ -60,7 +62,7 @@ export const StrokePanel = ({
            <span className="text-xs text-gray-400 ml-1">px</span>
         </div>
         <div className="flex-1 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-2 h-8 cursor-pointer">
-           <span className="text-sm text-gray-600">居中</span>
+           <span className="text-sm text-gray-600">{t('editor.align_center')}</span>
            <ChevronDown size={14} className="text-gray-400" />
         </div>
       </div>

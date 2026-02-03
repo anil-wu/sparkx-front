@@ -4,8 +4,10 @@ import React from 'react';
 import { Undo2, Redo2 } from 'lucide-react';
 import { useStore } from 'zustand';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
+import { useI18n } from '@/i18n/client';
 
 export default function HistoryControls() {
+  const { t } = useI18n();
   // Use useStore to subscribe to the temporal store updates
   const { pastStates, futureStates, undo, redo } = useStore(useWorkspaceStore.temporal);
 
@@ -15,7 +17,7 @@ export default function HistoryControls() {
         className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         onClick={() => undo()}
         disabled={pastStates.length === 0}
-        title={`撤销 (${pastStates.length})`}
+        title={t("history.undo", { count: pastStates.length })}
       >
         <Undo2 size={20} />
       </button>
@@ -24,7 +26,7 @@ export default function HistoryControls() {
         className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         onClick={() => redo()}
         disabled={futureStates.length === 0}
-        title={`重做 (${futureStates.length})`}
+        title={t("history.redo", { count: futureStates.length })}
       >
         <Redo2 size={20} />
       </button>

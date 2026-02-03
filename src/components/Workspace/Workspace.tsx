@@ -7,8 +7,10 @@ import GamePanel from './game/GamePanel';
 import CanvasArea from './CanvasArea';
 import ChatPanel from './chat/ChatPanel';
 import { Clapperboard, Gamepad2, Layers, FolderOpen, PenTool } from 'lucide-react';
+import { useI18n } from '@/i18n/client';
 
 export default function Workspace() {
+  const { t } = useI18n();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'editor' | 'game'>('editor');
@@ -32,14 +34,14 @@ export default function Workspace() {
                className={`flex-1 flex items-center justify-center py-1.5 rounded-lg text-xs font-medium transition-all ${leftPanel === 'hierarchy' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
              >
                <Layers size={14} className="mr-1.5" />
-               图层
+               {t('workspace.layers')}
              </button>
              <button 
                onClick={() => setLeftPanel('project')}
                className={`flex-1 flex items-center justify-center py-1.5 rounded-lg text-xs font-medium transition-all ${leftPanel === 'project' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
              >
                <FolderOpen size={14} className="mr-1.5" />
-               项目
+               {t('workspace.project')}
              </button>
           </div>
         )}
@@ -65,14 +67,14 @@ export default function Workspace() {
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'editor' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
           >
             <PenTool size={16} />
-            Editor
+            {t('workspace.editor')}
           </button>
           <button 
             onClick={() => setViewMode('game')}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'game' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
           >
             <Gamepad2 size={16} />
-            Game
+            {t('workspace.game')}
           </button>
         </div>
 

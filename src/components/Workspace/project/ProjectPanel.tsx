@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useI18n } from '@/i18n/client';
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -29,6 +30,7 @@ interface FileNode {
 }
 
 export default function ProjectPanel({ isCollapsed, toggleSidebar }: ProjectPanelProps) {
+  const { t } = useI18n();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -163,7 +165,7 @@ export default function ProjectPanel({ isCollapsed, toggleSidebar }: ProjectPane
     <div className="w-[260px] bg-white border border-gray-100 flex flex-col h-full rounded-3xl shadow-lg overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-        <span className="font-bold text-gray-800">项目资源</span>
+        <span className="font-bold text-gray-800">{t("project.assets")}</span>
         <div className="flex items-center gap-1">
            <button className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors">
               <Plus size={16} />
@@ -180,7 +182,7 @@ export default function ProjectPanel({ isCollapsed, toggleSidebar }: ProjectPane
            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
            <input 
               type="text" 
-              placeholder="搜索..." 
+              placeholder={t("project.search_placeholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-gray-50 border-none rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-700 focus:ring-1 focus:ring-blue-500 outline-none"
