@@ -6,8 +6,8 @@
 
 ## 环境要求
 
-- Node.js (推荐 v18 或更高版本)
-- npm 或 yarn 或 pnpm
+- Bun (推荐 v1.3+)
+- Node.js (仅在部分数据库驱动/工具链场景下需要，推荐 v20.9+)
 
 ## 快速开始
 
@@ -16,11 +16,7 @@
 在项目根目录下运行以下命令安装依赖：
 
 ```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
+bun install
 ```
 
 ### 2. 启动开发服务器
@@ -28,27 +24,99 @@ pnpm install
 安装完成后，运行以下命令启动开发环境：
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+bun run dev
 ```
 
 启动成功后，打开浏览器访问 [http://localhost:3000](http://localhost:3000) 即可看到项目运行效果。
+
+## 登录与认证（Better Auth）
+
+本项目使用 Better Auth，直接在 Next.js 内提供邮箱登录与 Google 登录。
+
+### 实现细节（代码级）
+
+**服务端配置**
+
+- 入口文件：`src/lib/auth.ts`
+- 数据库使用 MySQL（`mysql2` 驱动）
+- `betterAuth` 配置项：
+  - `secret`：`BETTER_AUTH_SECRET`
+  - `baseURL`：`BETTER_AUTH_URL`
+  - `database`：MySQL Pool
+  - `emailAndPassword.enabled = true`
+  - `socialProviders.google`：`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`（两者都配置才启用）
+
+**API 路由挂载**
+
+- 路由文件：`src/app/api/auth/[...all]/route.ts`
+- 使用 `toNextJsHandler(auth)` 暴露 `GET` / `POST`
+- 显式设置 `runtime = "nodejs"`，确保数据库驱动可用
+- OAuth 回调路径固定为：`/api/auth/callback/google`
+
+**页面层鉴权**
+
+- 登录页：`src/app/login/page.tsx`
+  - `auth.api.getSession({ headers })` 判断是否已登录
+  - 已登录直接 `redirect("/")`
+- 首页：`src/app/page.tsx`
+  - 同样通过 `auth.api.getSession` 校验
+  - 未登录 `redirect("/login")`
+  - 已登录展示 `AuthControls`（右上角退出）
+
+**客户端登录逻辑**
+
+- 客户端入口：`src/lib/auth-client.ts`（`createAuthClient()`）
+- 组件：`src/components/Auth/LoginForm.tsx`
+  - 邮箱登录：`authClient.signIn.email({ email, password })`
+  - 邮箱注册：`authClient.signUp.email({ name, email, password })`
+  - Google 登录：`authClient.signIn.social({ provider: "google" })`
+- 退出登录：`src/components/Auth/AuthControls.tsx`
+  - `authClient.signOut()` 后跳转 `/login`
+
+### 1. 环境变量
+
+复制 `.env.example` 为 `.env.local`（或 `.env`），并补齐以下变量：
+
+```bash
+BETTER_AUTH_SECRET=replace-with-a-strong-random-secret
+BETTER_AUTH_URL=http://localhost:3000
+DATABASE_URL=mysql://USER:PASSWORD@127.0.0.1:3306/DB_NAME
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+> 生产环境请把 `BETTER_AUTH_URL` 改为线上域名，例如 `https://your-domain.com`。
+> 若不需要 Google 登录，可不填 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`。
+
+### 2. 初始化数据库表
+
+首次运行需要初始化 Better Auth 的数据库表（MySQL）：
+
+```bash
+bun run auth:init:mysql
+```
+
+如果出现 `Table 'xxx.verification' doesn't exist` 之类错误，说明数据库表还未初始化，请先执行上面的初始化命令再登录。
+
+### 3. Google OAuth 回调地址
+
+在 Google Cloud Console 的 OAuth Client 中添加以下回调地址：
+
+- 本地：`http://localhost:3000/api/auth/callback/google`
+- 生产：`https://your-domain.com/api/auth/callback/google`
 
 ## 构建生产版本
 
 如果需要构建生产环境版本，请运行：
 
 ```bash
-npm run build
+bun run build
 ```
 
 构建完成后，可以通过以下命令启动生产服务：
 
 ```bash
-npm run start
+bun run start
 ```
 
 ## 技术栈
@@ -160,7 +228,7 @@ CanvasArea 内部实现了元素下载：
 
 ## 构建与部署
 
-- 本地开发：`npm run dev`（默认 http://localhost:3000）
-- 生产构建：`npm run build`
-- 生产启动：`npm run start`
+- 本地开发：`bun run dev`（默认 http://localhost:3000）
+- 生产构建：`bun run build`
+- 生产启动：`bun run start`
 - Docker：仓库提供 [Dockerfile](./Dockerfile)，使用 Next.js `output: 'standalone'`（见 [next.config.mjs](./next.config.mjs)）生成更小的运行镜像

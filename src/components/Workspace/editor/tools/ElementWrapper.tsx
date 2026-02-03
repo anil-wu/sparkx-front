@@ -34,7 +34,7 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
   const groupRef = useRef<Konva.Group>(null);
   const { activeTool, selectElement, updateElement, setGuidelines } = useWorkspaceStore();
 
-  const handleSelect = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleSelect = (e: Konva.KonvaEventObject<Event>) => {
     if (activeTool === 'select' && !locked) {
       selectElement(id);
       e.cancelBubble = true;
@@ -73,7 +73,7 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
     setGuidelines(result.guidelines);
   };
 
-  const handleDblClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleDblClick = (e: Konva.KonvaEventObject<Event>) => {
     if (locked) return;
     const textEditableTypes: ToolType[] = ['text', 'chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'];
     if (type && textEditableTypes.includes(type)) {

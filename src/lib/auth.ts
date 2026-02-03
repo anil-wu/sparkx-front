@@ -10,10 +10,7 @@ const requireEnv = (name: string) => {
 };
 
 const createDatabase = () => {
-  const databaseUrl =
-    process.env.DATABASE_URL ||
-    "mysql://sparkplay:sparkplay@47.112.97.49:3306/sparkplay";
-  return createPool(databaseUrl);
+  return createPool(requireEnv("DATABASE_URL"));
 };
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;

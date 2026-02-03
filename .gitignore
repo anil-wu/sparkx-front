@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+/package-lock.json
 /.pnp
 .pnp.js
 
@@ -16,6 +17,7 @@
 # misc
 .DS_Store
 *.pem
+.data/
 
 # debug
 npm-debug.log*
@@ -23,7 +25,12 @@ yarn-debug.log*
 ts-debug.log*
 
 # local env files
-.env*.local
+.env*
+!.env.example
+
+# local assistant/editor files
+.codex/
+.cursorindexingignore
 
 # vercel
 .vercel
