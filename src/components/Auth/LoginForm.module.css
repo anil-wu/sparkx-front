@@ -1,0 +1,121 @@
+.gradientBg {
+  background:
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 119, 48, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(255, 206, 84, 0.1) 0%, transparent 40%),
+    #0a0a0a;
+}
+
+.glassCard {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btnGradient {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  transition: all 0.3s ease;
+}
+
+.btnGradient:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 40px -10px rgba(255, 119, 48, 0.3);
+}
+
+.socialBtn {
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.socialBtn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.inputField {
+  box-sizing: border-box;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.inputField:focus {
+  border-color: #ff7730;
+  /* Use inset ring to avoid focus glow bleeding out of the field container */
+  box-shadow: inset 0 0 0 1px rgba(255, 119, 48, 0.25);
+  background: #fffdf9;
+}
+
+.floatingLabel {
+  position: absolute;
+  left: 1rem;
+  top: 0.875rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  pointer-events: none;
+  transform-origin: left center;
+  transition: all 0.2s ease;
+}
+
+.inputField:focus + .floatingLabel,
+.inputField:not(:placeholder-shown) + .floatingLabel {
+  transform: translateY(-10px) scale(0.85);
+  color: #ff7730;
+}
+
+.tabActive {
+  color: #1a1a1a;
+  border-bottom: 2px solid #ff7730;
+}
+
+.tabInactive {
+  color: #9ca3af;
+  border-bottom: 2px solid transparent;
+}
+
+.tabInactive:hover {
+  color: #4b5563;
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 200, 100, 0.5);
+  border-radius: 9999px;
+  will-change: transform;
+  transform: translateZ(0);
+  animation: sparkx-float 20s linear infinite;
+}
+
+@keyframes sparkx-float {
+  from {
+    transform: translateY(100vh) translateX(0);
+  }
+  to {
+    transform: translateY(-10vh) translateX(100px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .particle {
+    animation: none;
+  }
+
+  .btnGradient,
+  .socialBtn,
+  .inputField,
+  .floatingLabel {
+    transition: none;
+  }
+
+  .btnGradient:hover,
+  .socialBtn:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
