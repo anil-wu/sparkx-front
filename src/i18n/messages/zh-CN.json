@@ -11,6 +11,7 @@
   },
   "auth": {
     "signed_in": "已登录",
+    "projects": "项目列表",
     "sign_out": "退出",
     "signing_out": "退出中..."
   },
@@ -61,6 +62,35 @@
     "error_terms_required": "请先同意使用条款与隐私政策。",
     "error_register_failed": "注册失败，请重试。",
     "success_account_created": "账号创建成功，请登录。"
+  },
+  "projects": {
+    "title": "项目列表",
+    "subtitle": "选择一个项目进入编辑器，或查看项目介绍。",
+    "new_project": "新建项目",
+    "empty": "暂无项目。",
+    "create_first": "创建第一个项目",
+    "open_editor": "打开编辑器",
+    "intro": "项目介绍",
+    "no_description": "暂无描述。",
+    "delete": "删除项目",
+    "reset_demo": "重置演示项目",
+    "untitled_project": "未命名项目",
+    "untitled_description": "一个新的项目，已准备好开始编辑。"
+  },
+  "project_intro": {
+    "back_to_projects": "返回项目列表",
+    "not_found_title": "未找到项目",
+    "not_found_desc": "该项目在本设备上不存在，或已被删除。",
+    "no_description": "添加一句话来介绍你的项目。",
+    "created_at": "创建时间：{value}",
+    "updated_at": "更新时间：{value}",
+    "open_editor": "进入编辑器",
+    "view_assets": "查看资源",
+    "about_title": "项目概览",
+    "about_body_1": "这里是项目根目录的介绍页。",
+    "about_body_2": "你可以在这里描述目标、参考资料，以及项目的组织方式。",
+    "about_body_3": "进入编辑器开始制作素材与场景。",
+    "gallery_title": "图库"
   },
   "workspace": {
     "layers": "图层",

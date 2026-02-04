@@ -30,6 +30,7 @@ ts-debug.log*
 
 # local assistant/editor files
 .codex/
+.claude/
 .cursorindexingignore
 
 # vercel

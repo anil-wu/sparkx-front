@@ -16,6 +16,10 @@ export default function AuthControls({ label }: AuthControlsProps) {
   const [pending, startTransition] = useTransition();
   const { t } = useI18n();
 
+  const handleGoProjects = () => {
+    router.push("/projects");
+  };
+
   const handleSignOut = () => {
     startTransition(async () => {
       await authClient.signOut();
@@ -31,6 +35,13 @@ export default function AuthControls({ label }: AuthControlsProps) {
           {label}
         </span>
       )}
+      <button
+        type="button"
+        onClick={handleGoProjects}
+        className="rounded-full border border-slate-200 bg-white/90 px-4 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white"
+      >
+        {t("auth.projects")}
+      </button>
       <LanguageSwitcher />
       <button
         type="button"

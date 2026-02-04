@@ -31,7 +31,7 @@ type Message = {
   text: string;
 };
 
-const REDIRECT_AFTER_AUTH = "/";
+const REDIRECT_AFTER_AUTH = "/projects";
 
 export default function LoginForm() {
   const router = useRouter();

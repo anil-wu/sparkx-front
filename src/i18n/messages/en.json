@@ -11,6 +11,7 @@
   },
   "auth": {
     "signed_in": "Signed in",
+    "projects": "Projects",
     "sign_out": "Sign out",
     "signing_out": "Signing out..."
   },
@@ -61,6 +62,35 @@
     "error_terms_required": "Please agree to the Terms of Use and Privacy Policy first.",
     "error_register_failed": "Sign-up failed. Please try again.",
     "success_account_created": "Account created. Please sign in."
+  },
+  "projects": {
+    "title": "Projects",
+    "subtitle": "Pick a project to open the editor, or view the project overview.",
+    "new_project": "New project",
+    "empty": "No projects yet.",
+    "create_first": "Create your first project",
+    "open_editor": "Open editor",
+    "intro": "Overview",
+    "no_description": "No description yet.",
+    "delete": "Delete project",
+    "reset_demo": "Reset demo project",
+    "untitled_project": "Untitled Project",
+    "untitled_description": "A new project ready to be edited."
+  },
+  "project_intro": {
+    "back_to_projects": "Back to projects",
+    "not_found_title": "Project not found",
+    "not_found_desc": "This project does not exist on this device, or it has been deleted.",
+    "no_description": "Add a short description to introduce your project.",
+    "created_at": "Created: {value}",
+    "updated_at": "Updated: {value}",
+    "open_editor": "Open editor",
+    "view_assets": "View assets",
+    "about_title": "Project overview",
+    "about_body_1": "This page is the project overview (root).",
+    "about_body_2": "Use it to describe goals, references, and how the project is organized.",
+    "about_body_3": "Open the editor to start creating assets and scenes.",
+    "gallery_title": "Gallery"
   },
   "workspace": {
     "layers": "Layers",
