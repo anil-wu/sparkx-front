@@ -115,7 +115,10 @@ export default function LoginForm() {
   const isGoogleSubmitting = pending && pendingAction === "google";
 
   const handleGoogle = () => {
-    setMessage(null);
+    setMessage({
+      type: "info",
+      text: t("login.google_redirecting"),
+    });
     setPendingAction("google");
 
     startTransition(() => {
@@ -333,6 +336,7 @@ export default function LoginForm() {
                     type="button"
                     onClick={handleGoogle}
                     disabled={pending}
+                    aria-busy={isGoogleSubmitting}
                     className={`${styles.socialBtn} flex cursor-pointer items-center justify-center space-x-2 rounded-xl bg-white py-2.5 disabled:cursor-not-allowed disabled:opacity-70`}
                   >
                     {isGoogleSubmitting ? (
@@ -358,14 +362,17 @@ export default function LoginForm() {
                       </svg>
                     )}
                     <span className="text-sm font-medium text-gray-700">
-                      Google
+                      {isGoogleSubmitting
+                        ? t("login.google_redirecting_short")
+                        : "Google"}
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleApple}
-                    className={`${styles.socialBtn} flex cursor-pointer items-center justify-center space-x-2 rounded-xl bg-white py-2.5`}
+                    disabled={pending}
+                    className={`${styles.socialBtn} flex cursor-pointer items-center justify-center space-x-2 rounded-xl bg-white py-2.5 disabled:cursor-not-allowed disabled:opacity-70`}
                   >
                     <svg
                       className="h-5 w-5"
@@ -380,6 +387,13 @@ export default function LoginForm() {
                     </span>
                   </button>
                 </div>
+
+                {isGoogleSubmitting && (
+                  <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                    <span>{t("login.google_redirecting")}</span>
+                  </div>
+                )}
 
                 <div className="relative flex items-center justify-center">
                   <div className="flex-1 border-t border-gray-200" />

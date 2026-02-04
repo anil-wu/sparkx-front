@@ -21,6 +21,8 @@
     "welcome_back": "欢迎回来",
     "signin_subtitle": "登录以继续您的创作之旅",
     "google_signin_failed": "Google 登录失败，请重试。",
+    "google_redirecting": "正在跳转到 Google 登录...",
+    "google_redirecting_short": "跳转中...",
     "apple_coming_soon": "Apple 登录功能即将上线。",
     "or_email": "或使用邮箱",
     "email": "电子邮箱",
