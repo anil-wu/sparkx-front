@@ -119,6 +119,19 @@ bun run build
 bun run start
 ```
 
+## 测试（BDD / 行为驱动）
+
+当前前端提供轻量的 BDD 风格测试（Given/When/Then），不依赖后端服务：
+
+```bash
+bun run test
+```
+
+示例用例：
+
+- 语言切换：`src/components/I18n/LanguageSwitcher.bdd.test.tsx`
+- 项目列表本地存储：`src/lib/projects.bdd.test.ts`
+
 ## 技术栈
 
 - **框架**: [Next.js](https://nextjs.org/) 14 (App Router)
