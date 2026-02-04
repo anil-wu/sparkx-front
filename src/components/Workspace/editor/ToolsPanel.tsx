@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { MousePointer2, Square, Circle, Type, Pencil, Image as ImageIcon, Triangle, Star, MessageCircle, PenTool, Hand } from 'lucide-react';
 import { ToolType } from '../types/ToolType';
+import { isDrawTool, isSelectTool, isShapeTool } from '../types/toolGroups';
 import { useI18n } from '@/i18n/client';
 
 interface ToolsPanelProps {
@@ -45,7 +46,9 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
     </svg>
   );
 
-  const shapeTexts = [
+  const textShapes = [
+    { id: 'rectangle-text', icon: <Square size={20} /> },
+    { id: 'circle-text', icon: <Circle size={20} /> },
     { id: 'chat-bubble', icon: <MessageCircle size={20} /> },
     { id: 'arrow-left', icon: <BlockArrowLeftIcon size={20} /> },
     { id: 'arrow-right', icon: <BlockArrowRightIcon size={20} /> },
@@ -89,26 +92,28 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
   };
 
   const handleToolClick = (toolId: ToolType, isShape?: boolean, isPen?: boolean, isSelect?: boolean) => {
-    // If clicking on a tool, we just select it. Menus are handled by hover now.
-    // But we still need to handle default selection for grouped tools if needed.
-    // For now, let's just select the tool or the default tool of the group.
-
     if (isShape) {
-       // If clicking the main shape button, we might want to select 'rectangle' if current tool is not a shape
-       if (!['rectangle', 'circle', 'triangle', 'star', 'chat-bubble', 'arrow-left', 'arrow-right'].includes(activeTool)) {
-          onToolChange('rectangle');
-       }
-    } else if (isPen) {
-       if (!['pencil', 'pen'].includes(activeTool)) {
-          onToolChange('pencil');
-       }
-    } else if (isSelect) {
-       if (!['select', 'hand'].includes(activeTool)) {
-          onToolChange('select');
-       }
-    } else {
-      onToolChange(toolId);
+      if (!isShapeTool(activeTool)) {
+        onToolChange('rectangle');
+      }
+      return;
     }
+
+    if (isPen) {
+      if (!isDrawTool(activeTool)) {
+        onToolChange('pencil');
+      }
+      return;
+    }
+
+    if (isSelect) {
+      if (!isSelectTool(activeTool)) {
+        onToolChange('select');
+      }
+      return;
+    }
+
+    onToolChange(toolId);
   };
 
   const handleShapeSelect = (toolId: ToolType) => {
@@ -126,9 +131,9 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
     setShowSelectMenu(false);
   };
 
-  const isShapeActive = ['rectangle', 'circle', 'triangle', 'star', 'chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'].includes(activeTool);
-  const isPenActive = ['pencil', 'pen'].includes(activeTool);
-  const isSelectActive = ['select', 'hand'].includes(activeTool);
+  const isShapeActive = isShapeTool(activeTool);
+  const isPenActive = isDrawTool(activeTool);
+  const isSelectActive = isSelectTool(activeTool);
 
   return (
     <div 
@@ -157,7 +162,7 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
           >
             {tool.isShape && isShapeActive ? (
               (() => {
-                const allShapes = [...shapes, ...shapeTexts];
+                const allShapes = [...shapes, ...textShapes];
                 const activeShape = allShapes.find(s => s.id === activeTool);
                 return activeShape ? activeShape.icon : <Square size={20} />;
               })()
@@ -233,29 +238,7 @@ export default function ToolsPanel({ isSidebarCollapsed, activeTool, onToolChang
           <div>
             <div className="text-xs text-gray-500 mb-2">{t('tools.shape_text')}</div>
             <div className="flex flex-wrap gap-2">
-              <button
-                 onClick={() => handleShapeSelect('rectangle-text')}
-                 className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors
-                    ${activeTool === 'rectangle-text' 
-                      ? 'bg-gray-100 text-gray-900' 
-                      : 'text-gray-500 hover:bg-gray-50'
-                    }
-                  `}
-              >
-                <Square size={20} />
-              </button>
-               <button
-                 onClick={() => handleShapeSelect('circle-text')}
-                 className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors
-                    ${activeTool === 'circle-text' 
-                      ? 'bg-gray-100 text-gray-900' 
-                      : 'text-gray-500 hover:bg-gray-50'
-                    }
-                  `}
-              >
-                <Circle size={20} />
-              </button>
-              {shapeTexts.map((shape) => (
+              {textShapes.map((shape) => (
                 <button
                   key={shape.id}
                   onClick={() => handleShapeSelect(shape.id as ToolType)}

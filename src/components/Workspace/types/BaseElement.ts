@@ -1,4 +1,5 @@
 import { ToolType } from './ToolType';
+import { isDrawTool, isTextShapeTool } from './toolGroups';
 import { 
   ElementState, 
   BaseElementState, 
@@ -210,7 +211,7 @@ export class ElementFactory {
       });
     }
 
-    if (['chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'].includes(type)) {
+    if (isTextShapeTool(type)) {
        return new TextShapeElement({
          ...baseState,
          type: type as TextShapeState['type'],
@@ -222,7 +223,7 @@ export class ElementFactory {
        });
     }
 
-    if (['pencil', 'pen'].includes(type)) {
+    if (isDrawTool(type)) {
       return new DrawElement({
         ...baseState,
         type: type as DrawState['type'],

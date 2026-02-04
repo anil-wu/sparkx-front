@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  type FormEvent,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { type FormEvent, type ReactNode, useMemo, useState, useTransition } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -31,7 +26,199 @@ type Message = {
   text: string;
 };
 
+type Translator = ReturnType<typeof useI18n>["t"];
+type PasswordStrength = {
+  score: number;
+  label: string;
+};
+
+type LoginFormState = {
+  email: string;
+  password: string;
+  rememberMe: boolean;
+};
+
+type RegisterFormState = {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  agreeTerms: boolean;
+};
+
+type PasswordVisibilityState = {
+  login: boolean;
+  register: boolean;
+  registerConfirm: boolean;
+};
+
+type FloatingInputProps = {
+  id: string;
+  name: string;
+  label: string;
+  value: string;
+  disabled: boolean;
+  required?: boolean;
+  type?: string;
+  autoComplete?: string;
+  inputClassName?: string;
+  rightSlot?: ReactNode;
+  onValueChange: (value: string) => void;
+};
+
+type FloatingPasswordInputProps = Omit<FloatingInputProps, "type" | "rightSlot"> & {
+  visible: boolean;
+  onToggleVisible: () => void;
+  showAriaLabel: string;
+  hideAriaLabel: string;
+  toggleClassName?: string;
+};
+
 const REDIRECT_AFTER_AUTH = "/projects";
+
+const INITIAL_LOGIN_FORM: LoginFormState = {
+  email: "",
+  password: "",
+  rememberMe: false,
+};
+
+const INITIAL_REGISTER_FORM: RegisterFormState = {
+  name: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+  agreeTerms: false,
+};
+
+const PARTICLES = Array.from({ length: 36 }, (_, index) => ({
+  id: index,
+  left: `${(index * 37) % 100}%`,
+  delay: `${-(index * 0.4)}s`,
+  duration: `${16 + (index % 5) * 2}s`,
+  opacity: 0.15 + ((index % 7) * 0.05),
+}));
+
+function calculatePasswordStrength(value: string, t: Translator): PasswordStrength {
+  if (!value) {
+    return {
+      score: 0,
+      label: t("login.password_strength"),
+    };
+  }
+
+  let score = 0;
+  if (value.length >= 8) score += 1;
+  if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
+  if (/\d/.test(value)) score += 1;
+  if (/[^a-zA-Z\d]/.test(value)) score += 1;
+
+  const labels = [
+    t("login.password_strength"),
+    t("login.password_strength_very_weak"),
+    t("login.password_strength_weak"),
+    t("login.password_strength_medium"),
+    t("login.password_strength_strong"),
+  ];
+
+  return {
+    score,
+    label: score === 0 ? labels[1] : labels[score] ?? t("login.password_strength"),
+  };
+}
+
+function getStrengthColor(score: number): string {
+  if (score <= 1) return "bg-red-500";
+  if (score === 2) return "bg-orange-500";
+  if (score === 3) return "bg-yellow-500";
+  return "bg-green-500";
+}
+
+function FloatingInput({
+  id,
+  name,
+  label,
+  value,
+  disabled,
+  required = true,
+  type = "text",
+  autoComplete,
+  inputClassName,
+  rightSlot,
+  onValueChange,
+}: FloatingInputProps) {
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        name={name}
+        type={type}
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+        disabled={disabled}
+        placeholder=" "
+        required={required}
+        autoComplete={autoComplete}
+        className={`${styles.inputField} w-full rounded-xl bg-white px-4 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100 ${inputClassName ?? "py-3"}`}
+      />
+      <label htmlFor={id} className={styles.floatingLabel}>
+        {label}
+      </label>
+      {rightSlot}
+    </div>
+  );
+}
+
+function FloatingPasswordInput({
+  visible,
+  onToggleVisible,
+  showAriaLabel,
+  hideAriaLabel,
+  toggleClassName,
+  inputClassName,
+  ...props
+}: FloatingPasswordInputProps) {
+  return (
+    <FloatingInput
+      {...props}
+      type={visible ? "text" : "password"}
+      inputClassName={`pr-10 ${inputClassName ?? ""}`.trim()}
+      rightSlot={
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          className={
+            toggleClassName ??
+            "absolute right-3 top-3.5 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
+          }
+          aria-label={visible ? hideAriaLabel : showAriaLabel}
+        >
+          {visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+        </button>
+      }
+    />
+  );
+}
+
+function MessageBanner({ message }: { message: Message | null }) {
+  return (
+    <div
+      className={`rounded-xl border px-4 py-3 text-sm transition-opacity ${
+        message ? "opacity-100" : "pointer-events-none opacity-0"
+      } ${
+        message?.type === "error"
+          ? "border-red-200 bg-red-50 text-red-700"
+          : message?.type === "success"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-amber-200 bg-amber-50 text-amber-700"
+      }`}
+      role="alert"
+      aria-live="polite"
+      aria-hidden={!message}
+    >
+      {message?.text ?? "\u00A0"}
+    </div>
+  );
+}
 
 export default function LoginForm() {
   const router = useRouter();
@@ -41,78 +228,70 @@ export default function LoginForm() {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [pending, startTransition] = useTransition();
 
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginForm, setLoginForm] = useState<LoginFormState>(() => ({
+    ...INITIAL_LOGIN_FORM,
+  }));
+  const [registerForm, setRegisterForm] = useState<RegisterFormState>(() => ({
+    ...INITIAL_REGISTER_FORM,
+  }));
+  const [passwordVisibility, setPasswordVisibility] = useState<PasswordVisibilityState>({
+    login: false,
+    register: false,
+    registerConfirm: false,
+  });
 
-  const [registerName, setRegisterName] = useState("");
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] =
-    useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
+  const passwordStrength = useMemo(
+    () => calculatePasswordStrength(registerForm.password, t),
+    [registerForm.password, t],
+  );
+  const strengthColor = getStrengthColor(passwordStrength.score);
+
+  const isLoginSubmitting = pending && pendingAction === "login";
+  const isRegisterSubmitting = pending && pendingAction === "register";
+  const isGoogleSubmitting = pending && pendingAction === "google";
+
+  const setLoginEmail = (value: string) => {
+    setLoginForm((prev) => ({ ...prev, email: value }));
+    setMessage(null);
+  };
+
+  const setLoginPassword = (value: string) => {
+    setLoginForm((prev) => ({ ...prev, password: value }));
+    setMessage(null);
+  };
+
+  const setRegisterName = (value: string) => {
+    setRegisterForm((prev) => ({ ...prev, name: value }));
+    setMessage(null);
+  };
+
+  const setRegisterEmail = (value: string) => {
+    setRegisterForm((prev) => ({ ...prev, email: value }));
+    setMessage(null);
+  };
+
+  const setRegisterPassword = (value: string) => {
+    setRegisterForm((prev) => ({ ...prev, password: value }));
+    setMessage(null);
+  };
+
+  const setRegisterConfirmPassword = (value: string) => {
+    setRegisterForm((prev) => ({ ...prev, confirmPassword: value }));
+    setMessage(null);
+  };
+
+  const togglePasswordVisibility = (field: keyof PasswordVisibilityState) => {
+    setPasswordVisibility((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
 
   const handleModeChange = (nextMode: Mode) => {
     setMode(nextMode);
     setMessage(null);
     setPendingAction(null);
   };
-
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 36 }, (_, index) => ({
-        id: index,
-        left: `${(index * 37) % 100}%`,
-        delay: `${-(index * 0.4)}s`,
-        duration: `${16 + (index % 5) * 2}s`,
-        opacity: 0.15 + ((index % 7) * 0.05),
-      })),
-    [],
-  );
-
-  const passwordStrength = useMemo(() => {
-    const value = registerPassword;
-    if (!value) {
-      return {
-        score: 0,
-        label: t("login.password_strength"),
-      };
-    }
-
-    let score = 0;
-    if (value.length >= 8) score += 1;
-    if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
-    if (/\d/.test(value)) score += 1;
-    if (/[^a-zA-Z\d]/.test(value)) score += 1;
-
-    const labels = [
-      t("login.password_strength"),
-      t("login.password_strength_very_weak"),
-      t("login.password_strength_weak"),
-      t("login.password_strength_medium"),
-      t("login.password_strength_strong"),
-    ];
-
-    return {
-      score,
-      label:
-        score === 0 ? labels[1] : labels[score] ?? t("login.password_strength"),
-    };
-  }, [registerPassword, t]);
-
-  const strengthColor = useMemo(() => {
-    if (passwordStrength.score <= 1) return "bg-red-500";
-    if (passwordStrength.score === 2) return "bg-orange-500";
-    if (passwordStrength.score === 3) return "bg-yellow-500";
-    return "bg-green-500";
-  }, [passwordStrength.score]);
-
-  const isLoginSubmitting = pending && pendingAction === "login";
-  const isRegisterSubmitting = pending && pendingAction === "register";
-  const isGoogleSubmitting = pending && pendingAction === "google";
 
   const handleGoogle = () => {
     setMessage({
@@ -150,7 +329,7 @@ export default function LoginForm() {
     event.preventDefault();
     setMessage(null);
 
-    if (!loginEmail.trim() || !loginPassword) {
+    if (!loginForm.email.trim() || !loginForm.password) {
       setMessage({
         type: "error",
         text: t("login.error_missing_email_password"),
@@ -162,9 +341,9 @@ export default function LoginForm() {
     startTransition(() => {
       void (async () => {
         const result = await authClient.signIn.email({
-          email: loginEmail.trim(),
-          password: loginPassword,
-          rememberMe,
+          email: loginForm.email.trim(),
+          password: loginForm.password,
+          rememberMe: loginForm.rememberMe,
           callbackURL: REDIRECT_AFTER_AUTH,
         });
 
@@ -191,7 +370,7 @@ export default function LoginForm() {
     event.preventDefault();
     setMessage(null);
 
-    if (registerName.trim().length < 2) {
+    if (registerForm.name.trim().length < 2) {
       setMessage({
         type: "error",
         text: t("login.error_username_too_short"),
@@ -199,7 +378,7 @@ export default function LoginForm() {
       return;
     }
 
-    if (registerPassword.length < 8) {
+    if (registerForm.password.length < 8) {
       setMessage({
         type: "error",
         text: t("login.error_password_too_short"),
@@ -207,7 +386,7 @@ export default function LoginForm() {
       return;
     }
 
-    if (registerPassword !== registerConfirmPassword) {
+    if (registerForm.password !== registerForm.confirmPassword) {
       setMessage({
         type: "error",
         text: t("login.error_password_mismatch"),
@@ -215,7 +394,7 @@ export default function LoginForm() {
       return;
     }
 
-    if (!agreeTerms) {
+    if (!registerForm.agreeTerms) {
       setMessage({
         type: "error",
         text: t("login.error_terms_required"),
@@ -226,10 +405,12 @@ export default function LoginForm() {
     setPendingAction("register");
     startTransition(() => {
       void (async () => {
+        const normalizedRegisterEmail = registerForm.email.trim();
+
         const result = await authClient.signUp.email({
-          name: registerName.trim(),
-          email: registerEmail.trim(),
-          password: registerPassword,
+          name: registerForm.name.trim(),
+          email: normalizedRegisterEmail,
+          password: registerForm.password,
           callbackURL: REDIRECT_AFTER_AUTH,
         });
 
@@ -242,13 +423,12 @@ export default function LoginForm() {
           return;
         }
 
-        setLoginEmail(registerEmail.trim());
-        setLoginPassword("");
-        setRegisterName("");
-        setRegisterEmail("");
-        setRegisterPassword("");
-        setRegisterConfirmPassword("");
-        setAgreeTerms(false);
+        setLoginForm((prev) => ({
+          ...prev,
+          email: normalizedRegisterEmail,
+          password: "",
+        }));
+        setRegisterForm({ ...INITIAL_REGISTER_FORM });
         setMode("login");
         window.history.replaceState(null, "", window.location.pathname);
         setMessage({
@@ -265,7 +445,7 @@ export default function LoginForm() {
       className={`${styles.gradientBg} relative flex min-h-screen items-center justify-center p-4`}
     >
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        {particles.map((particle) => (
+        {PARTICLES.map((particle) => (
           <span
             key={particle.id}
             className={styles.particle}
@@ -326,9 +506,7 @@ export default function LoginForm() {
                   <h2 className="mb-2 text-2xl font-semibold text-gray-900">
                     {t("login.welcome_back")}
                   </h2>
-                  <p className="text-sm text-gray-500">
-                    {t("login.signin_subtitle")}
-                  </p>
+                  <p className="text-sm text-gray-500">{t("login.signin_subtitle")}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -362,9 +540,7 @@ export default function LoginForm() {
                       </svg>
                     )}
                     <span className="text-sm font-medium text-gray-700">
-                      {isGoogleSubmitting
-                        ? t("login.google_redirecting_short")
-                        : "Google"}
+                      {isGoogleSubmitting ? t("login.google_redirecting_short") : "Google"}
                     </span>
                   </button>
 
@@ -382,9 +558,7 @@ export default function LoginForm() {
                     >
                       <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zm-5.85-15.1c.07-2.04 1.76-3.89 3.75-4.12.29 2.32-2.07 4.46-3.75 4.12z" />
                     </svg>
-                    <span className="text-sm font-medium text-gray-700">
-                      Apple
-                    </span>
+                    <span className="text-sm font-medium text-gray-700">Apple</span>
                   </button>
                 </div>
 
@@ -403,70 +577,44 @@ export default function LoginForm() {
                   <div className="flex-1 border-t border-gray-200" />
                 </div>
 
-                <div className="relative">
-                  <input
-                    type="email"
-                    id="login-email"
-                    name="login-email"
-                    value={loginEmail}
-                    onChange={(event) => {
-                      setLoginEmail(event.target.value);
-                      setMessage(null);
-                    }}
-                    disabled={pending}
-                    placeholder=" "
-                    required
-                    autoComplete="email"
-                    className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3.5 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
-                  />
-                  <label htmlFor="login-email" className={styles.floatingLabel}>
-                    {t("login.email")}
-                  </label>
-                </div>
+                <FloatingInput
+                  id="login-email"
+                  name="login-email"
+                  type="email"
+                  label={t("login.email")}
+                  value={loginForm.email}
+                  onValueChange={setLoginEmail}
+                  disabled={pending}
+                  autoComplete="email"
+                  inputClassName="py-3.5"
+                />
 
-                <div className="relative">
-                  <input
-                    type={showLoginPassword ? "text" : "password"}
-                    id="login-password"
-                    name="login-password"
-                    value={loginPassword}
-                    onChange={(event) => {
-                      setLoginPassword(event.target.value);
-                      setMessage(null);
-                    }}
-                    disabled={pending}
-                    placeholder=" "
-                    required
-                    autoComplete="current-password"
-                    className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3.5 pr-10 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
-                  />
-                  <label htmlFor="login-password" className={styles.floatingLabel}>
-                    {t("login.password")}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowLoginPassword((prev) => !prev)}
-                    className="absolute right-3 top-3.5 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
-                    aria-label={
-                      showLoginPassword
-                        ? t("login.hide_password")
-                        : t("login.show_password")
-                    }
-                  >
-                    {showLoginPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
+                <FloatingPasswordInput
+                  id="login-password"
+                  name="login-password"
+                  label={t("login.password")}
+                  value={loginForm.password}
+                  onValueChange={setLoginPassword}
+                  disabled={pending}
+                  autoComplete="current-password"
+                  inputClassName="py-3.5"
+                  visible={passwordVisibility.login}
+                  onToggleVisible={() => togglePasswordVisibility("login")}
+                  showAriaLabel={t("login.show_password")}
+                  hideAriaLabel={t("login.hide_password")}
+                />
 
                 <div className="flex items-center justify-between text-sm">
                   <label className="group flex cursor-pointer items-center space-x-2">
                     <input
                       type="checkbox"
-                      checked={rememberMe}
-                      onChange={(event) => setRememberMe(event.target.checked)}
+                      checked={loginForm.rememberMe}
+                      onChange={(event) =>
+                        setLoginForm((prev) => ({
+                          ...prev,
+                          rememberMe: event.target.checked,
+                        }))
+                      }
                       className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                     />
                     <span className="text-gray-600 transition-colors group-hover:text-gray-800">
@@ -516,101 +664,54 @@ export default function LoginForm() {
                   <h2 className="mb-2 text-2xl font-semibold text-gray-900">
                     {t("login.create_account_title")}
                   </h2>
-                  <p className="text-sm text-gray-500">
-                    {t("login.create_account_subtitle")}
-                  </p>
+                  <p className="text-sm text-gray-500">{t("login.create_account_subtitle")}</p>
                 </div>
 
-                <div className="relative">
-                  <input
-                    type="text"
-                    id="reg-username"
-                    name="reg-username"
-                    value={registerName}
-                    onChange={(event) => {
-                      setRegisterName(event.target.value);
-                      setMessage(null);
-                    }}
-                    disabled={pending}
-                    placeholder=" "
-                    required
-                    autoComplete="name"
-                    className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
-                  />
-                  <label htmlFor="reg-username" className={styles.floatingLabel}>
-                    {t("login.username")}
-                  </label>
-                </div>
+                <FloatingInput
+                  id="reg-username"
+                  name="reg-username"
+                  label={t("login.username")}
+                  value={registerForm.name}
+                  onValueChange={setRegisterName}
+                  disabled={pending}
+                  autoComplete="name"
+                />
 
-                <div className="relative">
-                  <input
-                    type="email"
-                    id="reg-email"
-                    name="reg-email"
-                    value={registerEmail}
-                    onChange={(event) => {
-                      setRegisterEmail(event.target.value);
-                      setMessage(null);
-                    }}
-                    disabled={pending}
-                    placeholder=" "
-                    required
-                    autoComplete="email"
-                    className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
-                  />
-                  <label htmlFor="reg-email" className={styles.floatingLabel}>
-                    {t("login.email")}
-                  </label>
-                </div>
+                <FloatingInput
+                  id="reg-email"
+                  name="reg-email"
+                  type="email"
+                  label={t("login.email")}
+                  value={registerForm.email}
+                  onValueChange={setRegisterEmail}
+                  disabled={pending}
+                  autoComplete="email"
+                />
 
-                <div className="relative">
-                  <input
-                    type={showRegisterPassword ? "text" : "password"}
-                    id="reg-password"
-                    name="reg-password"
-                    value={registerPassword}
-                    onChange={(event) => {
-                      setRegisterPassword(event.target.value);
-                      setMessage(null);
-                    }}
-                    disabled={pending}
-                    placeholder=" "
-                    required
-                    autoComplete="new-password"
-                    className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 pr-10 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
-                  />
-                  <label htmlFor="reg-password" className={styles.floatingLabel}>
-                    {t("login.set_password")}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowRegisterPassword((prev) => !prev)}
-                    className="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
-                    aria-label={
-                      showRegisterPassword
-                        ? t("login.hide_password")
-                        : t("login.show_password")
-                    }
-                  >
-                    {showRegisterPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
+                <FloatingPasswordInput
+                  id="reg-password"
+                  name="reg-password"
+                  label={t("login.set_password")}
+                  value={registerForm.password}
+                  onValueChange={setRegisterPassword}
+                  disabled={pending}
+                  autoComplete="new-password"
+                  visible={passwordVisibility.register}
+                  onToggleVisible={() => togglePasswordVisibility("register")}
+                  showAriaLabel={t("login.show_password")}
+                  hideAriaLabel={t("login.hide_password")}
+                  toggleClassName="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
+                />
 
                 <div className="min-h-[34px]">
-                  {registerPassword.length > 0 && (
+                  {registerForm.password.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex h-1 space-x-1">
                         {Array.from({ length: 4 }).map((_, index) => (
                           <div
                             key={index}
                             className={`flex-1 rounded-full transition-colors ${
-                              index < passwordStrength.score
-                                ? strengthColor
-                                : "bg-gray-200"
+                              index < passwordStrength.score ? strengthColor : "bg-gray-200"
                             }`}
                           />
                         ))}
@@ -624,50 +725,31 @@ export default function LoginForm() {
                   )}
                 </div>
 
-                <div className="relative">
-                  <input
-                    type={showRegisterConfirmPassword ? "text" : "password"}
-                    id="reg-confirm"
-                    name="reg-confirm"
-                    value={registerConfirmPassword}
-                    onChange={(event) => {
-                      setRegisterConfirmPassword(event.target.value);
-                      setMessage(null);
-                    }}
-                    disabled={pending}
-                    placeholder=" "
-                    required
-                    autoComplete="new-password"
-                    className={`${styles.inputField} w-full rounded-xl bg-white px-4 py-3 pr-10 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100`}
-                  />
-                  <label htmlFor="reg-confirm" className={styles.floatingLabel}>
-                    {t("login.confirm_password")}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowRegisterConfirmPassword((prev) => !prev)
-                    }
-                    className="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
-                    aria-label={
-                      showRegisterConfirmPassword
-                        ? t("login.hide_password")
-                        : t("login.show_password")
-                    }
-                  >
-                    {showRegisterConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
+                <FloatingPasswordInput
+                  id="reg-confirm"
+                  name="reg-confirm"
+                  label={t("login.confirm_password")}
+                  value={registerForm.confirmPassword}
+                  onValueChange={setRegisterConfirmPassword}
+                  disabled={pending}
+                  autoComplete="new-password"
+                  visible={passwordVisibility.registerConfirm}
+                  onToggleVisible={() => togglePasswordVisibility("registerConfirm")}
+                  showAriaLabel={t("login.show_password")}
+                  hideAriaLabel={t("login.hide_password")}
+                  toggleClassName="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
+                />
 
                 <label className="flex cursor-pointer items-start space-x-2">
                   <input
                     type="checkbox"
-                    checked={agreeTerms}
-                    onChange={(event) => setAgreeTerms(event.target.checked)}
+                    checked={registerForm.agreeTerms}
+                    onChange={(event) =>
+                      setRegisterForm((prev) => ({
+                        ...prev,
+                        agreeTerms: event.target.checked,
+                      }))
+                    }
                     className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                   />
                   <span className="text-xs leading-relaxed text-gray-500">
@@ -709,41 +791,18 @@ export default function LoginForm() {
             )}
 
             <div className="min-h-[52px]">
-              <div
-                className={`rounded-xl border px-4 py-3 text-sm transition-opacity ${
-                  message
-                    ? "opacity-100"
-                    : "pointer-events-none opacity-0"
-                } ${
-                  message?.type === "error"
-                    ? "border-red-200 bg-red-50 text-red-700"
-                    : message?.type === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-amber-200 bg-amber-50 text-amber-700"
-                }`}
-                role="alert"
-                aria-live="polite"
-                aria-hidden={!message}
-              >
-                {message?.text ?? "\u00A0"}
-              </div>
+              <MessageBanner message={message} />
             </div>
 
             <div className="border-t border-gray-100 pt-2 text-center">
               <p className="text-xs text-gray-400">
                 {t("login.recaptcha_protected")}
                 <br />
-                <button
-                  type="button"
-                  className="cursor-pointer hover:text-gray-600"
-                >
+                <button type="button" className="cursor-pointer hover:text-gray-600">
                   {t("login.privacy_policy")}
                 </button>
                 {t("login.and")}
-                <button
-                  type="button"
-                  className="cursor-pointer hover:text-gray-600"
-                >
+                <button type="button" className="cursor-pointer hover:text-gray-600">
                   {t("login.terms_of_service")}
                 </button>
               </p>

@@ -1,4 +1,5 @@
 import { ToolType } from '../../types/ToolType';
+import { isGenericShapeMouseActionTool } from '../../types/toolGroups';
 import { IMouseAction } from '../interfaces/IMouseAction';
 import { MouseAction as SelectionMouseAction } from './select/MouseAction';
 import { MouseAction as RectangleMouseAction } from './rectangle/MouseAction';
@@ -10,43 +11,29 @@ import { MouseAction as PenMouseAction } from './pen/MouseAction';
 import { MouseAction } from './hand/MouseAction';
 import { ShapeMouseAction } from './base/ShapeMouseAction';
 
+const DIRECT_TOOL_CREATORS: Partial<Record<ToolType, () => IMouseAction>> = {
+  select: () => new SelectionMouseAction(),
+  rectangle: () => new RectangleMouseAction(),
+  circle: () => new CircleMouseAction(),
+  triangle: () => new TriangleMouseAction(),
+  star: () => new StarMouseAction(),
+  pencil: () => new PencilMouseAction(),
+  pen: () => new PenMouseAction(),
+  hand: () => new MouseAction(),
+};
+
 export class ToolFactory {
   static createTool(type: ToolType): IMouseAction {
-    switch (type) {
-      case 'select':
-        return new SelectionMouseAction();
-      case 'rectangle':
-        return new RectangleMouseAction();
-      case 'circle':
-        return new CircleMouseAction();
-      case 'triangle':
-        return new TriangleMouseAction();
-      case 'star':
-        return new StarMouseAction();
-      case 'pencil':
-        return new PencilMouseAction();
-      case 'pen':
-        return new PenMouseAction();
-      case 'hand':
-        return new MouseAction();
-      default:
-        // Generic shapes that use the standard ShapeMouseAction implementation
-        const genericShapes: ToolType[] = [
-          'chat-bubble', 
-          'arrow-left', 
-          'arrow-right', 
-          'rectangle-text', 
-          'circle-text', 
-          'text', 
-          'image'
-        ];
-
-        if (genericShapes.includes(type)) {
-            return new ShapeMouseAction(type);
-        }
-        
-        console.warn(`Tool type "${type}" not implemented, falling back to SelectionMouseAction`);
-        return new SelectionMouseAction();
+    const createTool = DIRECT_TOOL_CREATORS[type];
+    if (createTool) {
+      return createTool();
     }
+
+    if (isGenericShapeMouseActionTool(type)) {
+      return new ShapeMouseAction(type);
+    }
+
+    console.warn(`Tool type "${type}" not implemented, falling back to SelectionMouseAction`);
+    return new SelectionMouseAction();
   }
 }

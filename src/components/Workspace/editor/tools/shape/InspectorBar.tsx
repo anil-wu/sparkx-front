@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { BaseElement } from '../../../types/BaseElement';
+import { ToolType } from '../../../types/ToolType';
 import RectangleInspectorBar from '../rectangle/InspectorBar';
 import CircleInspectorBar from '../circle/InspectorBar';
 import TriangleInspectorBar from '../triangle/InspectorBar';
@@ -17,28 +18,20 @@ interface ShapeInspectorBarProps {
   onDownload?: () => void;
 }
 
+const SHAPE_INSPECTOR_COMPONENTS: Partial<Record<ToolType, React.ComponentType<ShapeInspectorBarProps>>> = {
+  rectangle: RectangleInspectorBar,
+  circle: CircleInspectorBar,
+  triangle: TriangleInspectorBar,
+  star: StarInspectorBar,
+  'chat-bubble': ChatBubbleInspectorBar,
+  'arrow-left': ArrowInspectorBar,
+  'arrow-right': ArrowInspectorBar,
+  'rectangle-text': TextRectangleInspectorBar,
+  'circle-text': TextCircleInspectorBar,
+};
+
 export default function ShapeInspectorBar(props: ShapeInspectorBarProps) {
   const { element } = props;
-
-  switch (element.type) {
-    case 'rectangle':
-      return <RectangleInspectorBar {...props} />;
-    case 'circle':
-      return <CircleInspectorBar {...props} />;
-    case 'triangle':
-      return <TriangleInspectorBar {...props} />;
-    case 'star':
-      return <StarInspectorBar {...props} />;
-    case 'chat-bubble':
-      return <ChatBubbleInspectorBar {...props} />;
-    case 'arrow-left':
-    case 'arrow-right':
-      return <ArrowInspectorBar {...props} />;
-    case 'rectangle-text':
-      return <TextRectangleInspectorBar {...props} />;
-    case 'circle-text':
-      return <TextCircleInspectorBar {...props} />;
-    default:
-      return <RectangleInspectorBar {...props} />;
-  }
+  const InspectorComponent = SHAPE_INSPECTOR_COMPONENTS[element.type] ?? RectangleInspectorBar;
+  return <InspectorComponent {...props} />;
 }

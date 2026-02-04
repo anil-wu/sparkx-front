@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Konva from 'konva';
 import ToolsPanel from './editor/ToolsPanel';
@@ -13,6 +13,10 @@ import { ZoomIn, ZoomOut } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { ContextMenu } from './editor/ContextMenu';
 import HistoryControls from './editor/HistoryControls';
+import { BaseElement } from './types/BaseElement';
+import { ElementState } from './types/ElementState';
+import { ToolType } from './types/ToolType';
+import { isDrawTool, isShapeTool, isTextLikeTool } from './types/toolGroups';
 
 // Dynamically import EditorStage to avoid SSR issues with Konva
 const EditorStage = dynamic(() => import('./EditorStage'), { ssr: false });
@@ -21,18 +25,51 @@ interface CanvasAreaProps {
   isSidebarCollapsed: boolean;
 }
 
-export default function CanvasArea({ 
-  isSidebarCollapsed, 
+type DrawingStyle = { stroke: string; strokeWidth: number };
+type ContextMenuState = { x: number; y: number; elementId: string | null };
+type StagePosition = { x: number; y: number };
+type CanvasDimensions = { width: number; height: number };
+
+const TOOL_SHORTCUTS: Partial<Record<string, ToolType>> = {
+  v: 'select',
+  h: 'hand',
+  r: 'rectangle',
+  o: 'circle',
+  t: 'text',
+};
+
+const isTypingTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+};
+
+const getInspectorPosition = (
+  element: BaseElement<any>,
+  zoom: number,
+  stagePos: StagePosition,
+) => ({
+  left: (element.x + element.width / 2) * zoom + stagePos.x,
+  top: element.y * zoom + stagePos.y - 20,
+});
+
+export default function CanvasArea({
+  isSidebarCollapsed,
 }: CanvasAreaProps) {
   const { elements, selectedId, updateElement, activeTool, setActiveTool } = useWorkspaceStore();
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
-  const [drawingStyle, setDrawingStyle] = useState({ stroke: '#000000', strokeWidth: 2 });
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; elementId: string | null } | null>(null);
-
+  const [dimensions, setDimensions] = useState<CanvasDimensions>({ width: 0, height: 0 });
+  const [stagePos, setStagePos] = useState<StagePosition>({ x: 0, y: 0 });
+  const [drawingStyle, setDrawingStyle] = useState<DrawingStyle>({ stroke: '#000000', strokeWidth: 2 });
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [stageInstance, setStageInstance] = useState<Konva.Stage | null>(null);
+
+  const selectedElement = useMemo(
+    () => (selectedId ? elements.find((element) => element.id === selectedId) ?? null : null),
+    [elements, selectedId],
+  );
 
   const triggerDownload = useCallback((filename: string, href: string) => {
     const link = document.createElement('a');
@@ -84,12 +121,14 @@ export default function CanvasArea({
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+    if (isTypingTarget(e.target)) {
       return;
     }
 
     const isMod = e.ctrlKey || e.metaKey;
-    if (isMod && e.key.toLowerCase() === 'z') {
+    const key = e.key.toLowerCase();
+
+    if (isMod && key === 'z') {
       e.preventDefault();
       if (e.shiftKey) {
         useWorkspaceStore.temporal.getState().redo();
@@ -98,7 +137,8 @@ export default function CanvasArea({
       }
       return;
     }
-    if (isMod && e.key.toLowerCase() === 'y') {
+
+    if (isMod && key === 'y') {
       e.preventDefault();
       useWorkspaceStore.temporal.getState().redo();
       return;
@@ -112,29 +152,14 @@ export default function CanvasArea({
       return;
     }
 
-    switch (e.key.toLowerCase()) {
-      case 'v':
-        setActiveTool('select');
-        break;
-      case 'h':
-        setActiveTool('hand');
-        break;
-      case 'p':
-        if (e.shiftKey) {
-          setActiveTool('pencil');
-        } else {
-          setActiveTool('pen');
-        }
-        break;
-      case 'r':
-        setActiveTool('rectangle');
-        break;
-      case 'o':
-        setActiveTool('circle');
-        break;
-      case 't':
-        setActiveTool('text');
-        break;
+    if (key === 'p') {
+      setActiveTool(e.shiftKey ? 'pencil' : 'pen');
+      return;
+    }
+
+    const nextTool = TOOL_SHORTCUTS[key];
+    if (nextTool) {
+      setActiveTool(nextTool);
     }
   }, [setActiveTool]);
 
@@ -143,49 +168,118 @@ export default function CanvasArea({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleZoomIn = () => setZoom(z => Math.min(z * 1.1, 3));
-  const handleZoomOut = () => setZoom(z => Math.max(z / 1.1, 0.1));
+  const handleZoomIn = () => setZoom((value) => Math.min(value * 1.1, 3));
+  const handleZoomOut = () => setZoom((value) => Math.max(value / 1.1, 0.1));
 
   const renderDrawInspector = () => {
-    if (!['pencil', 'pen'].includes(activeTool)) return null;
+    if (!isDrawTool(activeTool)) {
+      return null;
+    }
 
-    const selectedElement = selectedId ? elements.find(e => e.id === selectedId) : null;
-    const isMatchingElement = selectedElement && selectedElement.type === activeTool;
-    
+    const isMatchingElement = Boolean(selectedElement && selectedElement.type === activeTool);
     const element = isMatchingElement ? selectedElement : drawingStyle;
-    
-    const handleUpdate = (updates: any) => {
-        setDrawingStyle(prev => ({ ...prev, ...updates }));
-        if (isMatchingElement) {
-            updateElement(selectedId!, updates);
-        }
+
+    const handleUpdate = (updates: Partial<ElementState>) => {
+      setDrawingStyle((previous) => ({ ...previous, ...updates }));
+      if (isMatchingElement && selectedId) {
+        updateElement(selectedId, updates);
+      }
     };
 
     return (
-        <div className="absolute z-50 left-1/2 top-4 -translate-x-1/2">
-            <DrawInspectorBar
-                element={element as any}
-                onUpdate={handleUpdate}
-                onDownload={isMatchingElement ? handleDownload : undefined}
-            />
-        </div>
+      <div className="absolute left-1/2 top-4 z-50 -translate-x-1/2">
+        <DrawInspectorBar
+          element={element as any}
+          onUpdate={handleUpdate}
+          onDownload={isMatchingElement ? handleDownload : undefined}
+        />
+      </div>
+    );
+  };
+
+  const renderSelectedInspector = () => {
+    if (!selectedElement || !selectedId) {
+      return null;
+    }
+
+    const isImage = selectedElement.type === 'image';
+    const isDraw = isDrawTool(selectedElement.type);
+    const isShape = isShapeTool(selectedElement.type);
+    const isText = selectedElement.type === 'text';
+
+    // Drawing tools use the fixed top bar while active.
+    if (isDraw && isDrawTool(activeTool)) {
+      return null;
+    }
+
+    if (!isImage && !isShape && !isDraw && !isText) {
+      return null;
+    }
+
+    const { left, top } = getInspectorPosition(selectedElement, zoom, stagePos);
+    const handleUpdate = (updates: Partial<ElementState>) => {
+      updateElement(selectedId, updates);
+    };
+
+    const shouldUseTextInspector = isText || (selectedElement.isEditing && isTextLikeTool(selectedElement.type));
+
+    let inspector: React.ReactNode;
+    if (shouldUseTextInspector) {
+      inspector = (
+        <TextInspectorBar
+          element={selectedElement}
+          onUpdate={handleUpdate}
+          onDownload={handleDownload}
+        />
+      );
+    } else if (isImage) {
+      inspector = <ImageInspectorBar />;
+    } else if (isDraw) {
+      inspector = (
+        <DrawSelectionToolbar
+          element={selectedElement}
+          onUpdate={handleUpdate}
+          onDownload={handleDownload}
+        />
+      );
+    } else {
+      inspector = (
+        <ShapeInspectorBar
+          element={selectedElement}
+          onUpdate={handleUpdate}
+          onDownload={handleDownload}
+        />
+      );
+    }
+
+    return (
+      <div
+        className="absolute z-50 pointer-events-none transition-all duration-75 ease-out"
+        style={{
+          left,
+          top,
+          transform: 'translate(-50%, -100%)',
+        }}
+      >
+        <div className="pointer-events-auto">{inspector}</div>
+      </div>
     );
   };
 
   return (
-    <div 
+    <div
       className="flex-1 relative bg-[#fafafa] overflow-hidden"
       ref={containerRef}
     >
-      <ToolsPanel 
-        isSidebarCollapsed={isSidebarCollapsed} 
+      <ToolsPanel
+        isSidebarCollapsed={isSidebarCollapsed}
         activeTool={activeTool}
         onToolChange={setActiveTool}
       />
-      
+
       {/* Canvas Stage Layer */}
       {dimensions.width > 0 && dimensions.height > 0 && (
-        <EditorStage 
+        <EditorStage
           onStageReady={setStageInstance}
           activeTool={activeTool}
           onToolUsed={() => {}}
@@ -201,7 +295,7 @@ export default function CanvasArea({
             setContextMenu({
               x: e.evt.clientX,
               y: e.evt.clientY,
-              elementId: elementId || null
+              elementId: elementId || null,
             });
           }}
         />
@@ -220,81 +314,7 @@ export default function CanvasArea({
       {/* Persistent InspectorBar when in pencil/pen mode */}
       {renderDrawInspector()}
 
-      {selectedId && (() => {
-        const selectedElement = elements.find(el => el.id === selectedId);
-        if (!selectedElement) return null;
-
-        // Use stage-relative coordinates, taking zoom and pan into account
-        const left = (selectedElement.x + selectedElement.width / 2) * zoom + stagePos.x;
-        // Position above the element: y - padding
-        const top = selectedElement.y * zoom + stagePos.y - 20;
-
-        const handleUpdate = (updates: any) => {
-            updateElement(selectedId, updates);
-        };
-
-        const isImage = selectedElement.type === 'image';
-        const isShape = ['rectangle', 'triangle', 'star', 'circle', 'chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'].includes(selectedElement.type);
-        const isDraw = ['pencil', 'pen'].includes(selectedElement.type);
-        const isText = selectedElement.type === 'text';
-
-        // If current tool is pencil/pen, we use the top persistent toolbar, so don't show floating one for draw elements
-        if (isDraw && ['pencil', 'pen'].includes(activeTool)) return null;
-
-        if (!isImage && !isShape && !isDraw && !isText) return null;
-
-        const isTextLike = isText || ['chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'].includes(selectedElement.type);
-
-        if (isText || (selectedElement.isEditing && isTextLike)) {
-          return (
-            <div 
-              className="absolute z-50 pointer-events-none transition-all duration-75 ease-out"
-              style={{
-                left: left,
-                top: top,
-                transform: 'translate(-50%, -100%)'
-              }}
-            >
-              <div className="pointer-events-auto">
-                <TextInspectorBar 
-                  element={selectedElement}
-                  onUpdate={handleUpdate}
-                  onDownload={handleDownload}
-                />
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div 
-            className="absolute z-50 pointer-events-none transition-all duration-75 ease-out"
-            style={{
-              left: left,
-              top: top,
-              transform: 'translate(-50%, -100%)'
-            }}
-          >
-            <div className="pointer-events-auto">
-              {isImage ? (
-                <ImageInspectorBar />
-              ) : isDraw ? (
-                  <DrawSelectionToolbar 
-                    element={selectedElement}
-                    onUpdate={handleUpdate}
-                    onDownload={handleDownload}
-                  />
-              ) : (
-                <ShapeInspectorBar 
-                  element={selectedElement}
-                  onUpdate={handleUpdate}
-                  onDownload={handleDownload}
-                />
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {renderSelectedInspector()}
 
       <div className="absolute top-6 right-20 bg-white rounded-lg px-2 py-1.5 shadow-md flex items-center gap-3 text-sm text-gray-700 z-50">
         <button className="p-1 hover:text-black transition-colors" onClick={handleZoomOut}><ZoomOut size={16} /></button>

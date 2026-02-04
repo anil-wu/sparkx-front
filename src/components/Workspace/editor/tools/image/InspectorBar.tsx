@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import { BaseElement } from '../../../types/BaseElement';
 import { ZoomIn, Scissors, Eraser, Edit, Move, PenTool, MoreHorizontal, Settings2 } from 'lucide-react';
 import { useI18n } from '@/i18n/client';
 

@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { Group } from 'react-konva';
 import Konva from 'konva';
 import { BaseElementProps } from '../../types/ElementProps';
-import { ToolType } from '../../types/ToolType';
+import { isTextLikeTool } from '../../types/toolGroups';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { calculateSnap } from '../utils/snapUtils';
 
@@ -75,8 +75,7 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
 
   const handleDblClick = (e: Konva.KonvaEventObject<Event>) => {
     if (locked) return;
-    const textEditableTypes: ToolType[] = ['text', 'chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'];
-    if (type && textEditableTypes.includes(type)) {
+    if (isTextLikeTool(type)) {
       updateElement(id, { isEditing: true });
     }
     e.cancelBubble = true;
@@ -121,8 +120,7 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
         };
 
         const currentFontSize = (rest as any).fontSize;
-        const textLikeTypes: ToolType[] = ['text', 'chat-bubble', 'arrow-left', 'arrow-right', 'rectangle-text', 'circle-text'];
-        if (textLikeTypes.includes(type as any) && typeof currentFontSize === 'number') {
+        if (isTextLikeTool(type) && typeof currentFontSize === 'number') {
           nextUpdates.fontSize = Math.max(5, Math.min(Math.round(currentFontSize * scaleY), 200));
         }
 
