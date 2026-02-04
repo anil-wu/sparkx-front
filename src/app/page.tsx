@@ -17,7 +17,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
           <span className="text-sm font-semibold tracking-wide text-slate-900">SparkX</span>
           {session ? (

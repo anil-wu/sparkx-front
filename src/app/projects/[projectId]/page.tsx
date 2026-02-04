@@ -29,7 +29,7 @@ export default async function ProjectIntroPage({
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-end px-6">
           <AuthControls label={userLabel} />
         </div>
