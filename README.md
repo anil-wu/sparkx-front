@@ -41,7 +41,7 @@ bun run dev
 - 数据库使用 MySQL（`mysql2` 驱动）
 - `betterAuth` 配置项：
   - `secret`：`BETTER_AUTH_SECRET`
-  - `baseURL`：`BETTER_AUTH_URL`
+  - `baseURL`：`BETTER_AUTH_URL`（可选，未设置时自动从请求头推断域名/协议）
   - `database`：MySQL Pool
   - `emailAndPassword.enabled = true`
   - `socialProviders.google`：`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`（两者都配置才启用）
@@ -85,7 +85,10 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 ```
 
-> 生产环境请把 `BETTER_AUTH_URL` 改为线上域名，例如 `https://your-domain.com`。
+> `BETTER_AUTH_URL` 可选：  
+> - 支持完整 URL：`https://your-domain.com`  
+> - 也支持仅域名：`your-domain.com`（会自动补协议）  
+> - 不配置时会根据请求头自动推断（适合 Vercel / 反向代理场景）
 > 若不需要 Google 登录，可不填 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`。
 
 ### 2. 初始化数据库表
