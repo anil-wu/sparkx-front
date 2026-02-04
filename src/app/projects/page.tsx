@@ -23,10 +23,13 @@ export default async function ProjectsPage() {
   const userKey = session.user.id ?? session.user.email ?? "unknown";
 
   return (
-    <main className="relative min-h-screen bg-slate-50">
-      <AuthControls label={userLabel} />
+    <main className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-end px-6">
+          <AuthControls label={userLabel} />
+        </div>
+      </header>
       <ProjectsHub userKey={userKey} />
     </main>
   );
 }
-

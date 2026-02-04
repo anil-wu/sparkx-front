@@ -1,6 +1,12 @@
 import { JSDOM } from "jsdom";
+import { afterEach } from "bun:test";
+import { cleanup } from "@testing-library/react";
 
-if (typeof window === "undefined") {
+if (
+  typeof window === "undefined" ||
+  typeof document === "undefined" ||
+  !document.body
+) {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", {
     url: "http://localhost/",
   });
@@ -12,3 +18,7 @@ if (typeof window === "undefined") {
   // @ts-expect-error - attach jsdom globals
   globalThis.navigator = dom.window.navigator;
 }
+
+afterEach(() => {
+  cleanup();
+});

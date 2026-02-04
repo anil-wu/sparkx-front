@@ -9,9 +9,10 @@ import { authClient } from "@/lib/auth-client";
 
 type AuthControlsProps = {
   label?: string;
+  className?: string;
 };
 
-export default function AuthControls({ label }: AuthControlsProps) {
+export default function AuthControls({ label, className }: AuthControlsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const { t } = useI18n();
@@ -29,25 +30,25 @@ export default function AuthControls({ label }: AuthControlsProps) {
   };
 
   return (
-    <div className="absolute right-4 top-4 z-50 flex items-center gap-3">
+    <div className={className ?? "flex items-center gap-2"}>
       {label && (
-        <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-700 shadow">
+        <span className="hidden rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600 md:inline-block">
           {label}
         </span>
       )}
       <button
         type="button"
         onClick={handleGoProjects}
-        className="rounded-full border border-slate-200 bg-white/90 px-4 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white"
+        className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
       >
         {t("auth.projects")}
       </button>
-      <LanguageSwitcher />
+      <LanguageSwitcher className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50" />
       <button
         type="button"
         onClick={handleSignOut}
         disabled={pending}
-        className="rounded-full border border-slate-200 bg-white/90 px-4 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+        className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {pending ? t("auth.signing_out") : t("auth.sign_out")}
       </button>

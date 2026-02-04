@@ -33,6 +33,15 @@ describe("projects storage (BDD)", () => {
       expect(stored[0]?.id).toBe("demo");
       expect(window.localStorage.getItem(getProjectsStorageKey(userKey))).toBeTruthy();
     });
+
+    await when("ensureProjects is called again", async () => {
+      ensureProjects(userKey);
+    });
+
+    await then("it does not duplicate the seeded project", async () => {
+      const stored = readProjects(userKey);
+      expect(stored.filter((p) => p.id === "demo")).toHaveLength(1);
+    });
   });
 
   it("Given some projects, When created and deleted, Then the list reflects changes", async () => {

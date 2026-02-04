@@ -1,7 +1,7 @@
 import "../../test/setup";
 
-import { describe, expect, it } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "bun:test";
+import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { I18nProvider, useI18n } from "@/i18n/client";
@@ -15,9 +15,15 @@ function SignOutLabel() {
 }
 
 describe("LanguageSwitcher (BDD)", () => {
+  beforeEach(() => {
+    document.cookie = "locale=; Max-Age=0; Path=/";
+  });
+
   it("Given zh-CN, When toggled, Then it switches to English instantly and writes cookie", async () => {
+    let view: ReturnType<typeof render> | null = null;
+
     await given("the app is rendered in zh-CN", async () => {
-      render(
+      view = render(
         <I18nProvider locale="zh-CN" messages={getMessages("zh-CN")}>
           <LanguageSwitcher />
           <SignOutLabel />
@@ -26,18 +32,25 @@ describe("LanguageSwitcher (BDD)", () => {
     });
 
     await then("it shows zh-CN UI initially", async () => {
-      expect(screen.getByText("中")).toBeTruthy();
-      expect(screen.getByTestId("sign-out-label").textContent).toContain("退出");
+      if (!view) throw new Error("Expected rendered view");
+      const switchButton = view.getByRole("button");
+      expect(switchButton.textContent).toContain("中");
+      expect(switchButton.getAttribute("aria-label")).toContain("English");
+      expect(view.getByTestId("sign-out-label").textContent).toContain("退出");
     });
 
     await when("the user toggles language", async () => {
+      if (!view) throw new Error("Expected rendered view");
       const user = userEvent.setup();
-      await user.click(screen.getByRole("button"));
+      await user.click(view.getByRole("button"));
     });
 
     await then("it updates UI without a full refresh and persists cookie", async () => {
-      expect(screen.getByText("EN")).toBeTruthy();
-      expect(screen.getByTestId("sign-out-label").textContent).toContain(
+      if (!view) throw new Error("Expected rendered view");
+      const switchButton = view.getByRole("button");
+      expect(switchButton.textContent).toContain("EN");
+      expect(switchButton.getAttribute("aria-label")).toContain("Chinese");
+      expect(view.getByTestId("sign-out-label").textContent).toContain(
         "Sign out",
       );
       expect(document.cookie).toContain("locale=en");

@@ -67,7 +67,7 @@ export default function ProjectsHub({ userKey }: ProjectsHubProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 pb-16 pt-20">
+    <div className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">

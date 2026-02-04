@@ -36,10 +36,16 @@ export default async function ProjectEditorPage({
       : "hierarchy";
 
   return (
-    <main className="relative">
-      <ProjectEditorHeader projectId={projectId} />
-      <AuthControls label={userLabel} />
-      <Workspace initialLeftPanel={initialLeftPanel} />
+    <main className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur">
+        <div className="flex h-14 items-center justify-between px-4 sm:px-6">
+          <ProjectEditorHeader projectId={projectId} />
+          <AuthControls label={userLabel} />
+        </div>
+      </header>
+      <div className="h-[calc(100vh-56px)]">
+        <Workspace initialLeftPanel={initialLeftPanel} heightClassName="h-full" />
+      </div>
     </main>
   );
 }

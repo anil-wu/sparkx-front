@@ -37,7 +37,7 @@ export default function ProjectIntro({ userKey, projectId }: ProjectIntroProps) 
 
   if (!project) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-6 pb-16 pt-20">
+      <div className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
         <Link
           href="/projects"
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
@@ -58,7 +58,7 @@ export default function ProjectIntro({ userKey, projectId }: ProjectIntroProps) 
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 pb-16 pt-20">
+    <div className="mx-auto w-full max-w-5xl px-6 pb-16 pt-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link

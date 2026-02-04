@@ -12,11 +12,13 @@ import { useI18n } from "@/i18n/client";
 type WorkspaceProps = {
   initialLeftPanel?: 'hierarchy' | 'project';
   initialViewMode?: 'editor' | 'game';
+  heightClassName?: string;
 };
 
 export default function Workspace({
   initialLeftPanel = 'hierarchy',
   initialViewMode = 'editor',
+  heightClassName = 'h-screen',
 }: WorkspaceProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
@@ -32,7 +34,7 @@ export default function Workspace({
   };
 
   return (
-    <div className="flex h-screen w-full bg-gray-50">
+    <div className={`flex ${heightClassName} w-full bg-gray-50`}>
       <div className={`transition-all duration-300 flex-shrink-0 ${isSidebarCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'} flex flex-col gap-3`}>
         {!isSidebarCollapsed && (
           <LeftPanelSwitcher leftPanel={leftPanel} onChange={setLeftPanel} />
