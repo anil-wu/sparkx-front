@@ -151,6 +151,9 @@ function FloatingInput({
   rightSlot,
   onValueChange,
 }: FloatingInputProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const isFloating = isFocused || value.length > 0;
+
   return (
     <div className="relative">
       <input
@@ -163,9 +166,14 @@ function FloatingInput({
         placeholder=" "
         required={required}
         autoComplete={autoComplete}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         className={`${styles.inputField} w-full rounded-xl bg-white px-4 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100 ${inputClassName ?? "py-3"}`}
       />
-      <label htmlFor={id} className={styles.floatingLabel}>
+      <label
+        htmlFor={id}
+        className={`${styles.floatingLabel} ${isFloating ? styles.floatingLabelRaised : ""}`}
+      >
         {label}
       </label>
       {rightSlot}
