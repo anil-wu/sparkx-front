@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 
 import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/i18n/client";
 import styles from "./LoginForm.module.css";
 
@@ -151,32 +155,25 @@ function FloatingInput({
   rightSlot,
   onValueChange,
 }: FloatingInputProps) {
-  const [isFocused, setIsFocused] = useState(false);
-  const isFloating = isFocused || value.length > 0;
-
   return (
-    <div className="relative">
-      <input
-        id={id}
-        name={name}
-        type={type}
-        value={value}
-        onChange={(event) => onValueChange(event.target.value)}
-        disabled={disabled}
-        placeholder=" "
-        required={required}
-        autoComplete={autoComplete}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className={`${styles.inputField} w-full rounded-xl bg-white px-4 text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100 ${inputClassName ?? "py-3"}`}
-      />
-      <label
-        htmlFor={id}
-        className={`${styles.floatingLabel} ${isFloating ? styles.floatingLabelRaised : ""}`}
-      >
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-sm font-medium text-orange-500">
         {label}
-      </label>
-      {rightSlot}
+      </Label>
+      <div className="relative">
+        <Input
+          id={id}
+          name={name}
+          type={type}
+          value={value}
+          onChange={(event) => onValueChange(event.target.value)}
+          disabled={disabled}
+          required={required}
+          autoComplete={autoComplete}
+          className={`h-14 rounded-2xl border-slate-200 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 focus-visible:ring-orange-500 disabled:bg-gray-100 ${inputClassName ?? ""}`}
+        />
+        {rightSlot}
+      </div>
     </div>
   );
 }
@@ -201,7 +198,7 @@ function FloatingPasswordInput({
           onClick={onToggleVisible}
           className={
             toggleClassName ??
-            "absolute right-3 top-3.5 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
+            "absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
           }
           aria-label={visible ? hideAriaLabel : showAriaLabel}
         >
@@ -539,27 +536,26 @@ export default function LoginForm() {
           className={`${styles.glassCard} relative overflow-hidden rounded-3xl shadow-2xl`}
         >
           <div className="h-1 w-full bg-gradient-to-r from-orange-400 via-yellow-400 to-orange-400" />
-
-          <div className="flex border-b border-gray-100">
-            <button
-              type="button"
-              onClick={() => handleModeChange("login")}
-              className={`flex-1 cursor-pointer py-4 text-sm font-medium transition-colors ${
-                mode === "login" ? styles.tabActive : styles.tabInactive
-              }`}
-            >
-              {t("login.tab_login")}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleModeChange("register")}
-              className={`flex-1 cursor-pointer py-4 text-sm font-medium transition-colors ${
-                mode === "register" ? styles.tabActive : styles.tabInactive
-              }`}
-            >
-              {t("login.tab_register")}
-            </button>
-          </div>
+          <Tabs
+            value={mode}
+            onValueChange={(nextMode) => handleModeChange(nextMode as Mode)}
+            className="border-b border-gray-100"
+          >
+            <TabsList className="grid h-auto w-full grid-cols-2 rounded-none bg-transparent p-0">
+              <TabsTrigger
+                value="login"
+                className="rounded-none border-b-2 border-transparent py-4 text-sm font-medium text-slate-400 data-[state=active]:border-orange-400 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none"
+              >
+                {t("login.tab_login")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="register"
+                className="rounded-none border-b-2 border-transparent py-4 text-sm font-medium text-slate-400 data-[state=active]:border-orange-400 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none"
+              >
+                {t("login.tab_register")}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <div className="min-h-[620px] space-y-6 p-8">
             {mode === "login" ? (
@@ -634,7 +630,6 @@ export default function LoginForm() {
                   onValueChange={setLoginEmail}
                   disabled={pending}
                   autoComplete="email"
-                  inputClassName="py-3.5"
                 />
 
                 <FloatingPasswordInput
@@ -645,7 +640,6 @@ export default function LoginForm() {
                   onValueChange={setLoginPassword}
                   disabled={pending}
                   autoComplete="current-password"
-                  inputClassName="py-3.5"
                   visible={passwordVisibility.login}
                   onToggleVisible={() => togglePasswordVisibility("login")}
                   showAriaLabel={t("login.show_password")}
@@ -653,22 +647,25 @@ export default function LoginForm() {
                 />
 
                 <div className="flex items-center justify-between text-sm">
-                  <label className="group flex cursor-pointer items-center space-x-2">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember-me"
                       checked={loginForm.rememberMe}
-                      onChange={(event) =>
+                      onCheckedChange={(checked) =>
                         setLoginForm((prev) => ({
                           ...prev,
-                          rememberMe: event.target.checked,
+                          rememberMe: checked === true,
                         }))
                       }
-                      className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                      className="h-4 w-4 rounded border-slate-300 data-[state=checked]:border-orange-500 data-[state=checked]:bg-orange-500"
                     />
-                    <span className="text-gray-600 transition-colors group-hover:text-gray-800">
+                    <Label
+                      htmlFor="remember-me"
+                      className="cursor-pointer text-sm text-gray-600 transition-colors hover:text-gray-800"
+                    >
                       {t("login.remember_me")}
-                    </span>
-                  </label>
+                    </Label>
+                  </div>
                   <button
                     type="button"
                     onClick={() =>
@@ -748,7 +745,6 @@ export default function LoginForm() {
                   onToggleVisible={() => togglePasswordVisibility("register")}
                   showAriaLabel={t("login.show_password")}
                   hideAriaLabel={t("login.hide_password")}
-                  toggleClassName="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
                 />
 
                 <div className="min-h-[34px]">
@@ -785,23 +781,24 @@ export default function LoginForm() {
                   onToggleVisible={() => togglePasswordVisibility("registerConfirm")}
                   showAriaLabel={t("login.show_password")}
                   hideAriaLabel={t("login.hide_password")}
-                  toggleClassName="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
                 />
 
-                <label className="flex cursor-pointer items-start space-x-2">
-                  <input
-                    type="checkbox"
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="agree-terms"
                     checked={registerForm.agreeTerms}
-                    onChange={(event) =>
+                    onCheckedChange={(checked) =>
                       setRegisterForm((prev) => ({
                         ...prev,
-                        agreeTerms: event.target.checked,
+                        agreeTerms: checked === true,
                       }))
                     }
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 data-[state=checked]:border-orange-500 data-[state=checked]:bg-orange-500"
                   />
                   <span className="text-xs leading-relaxed text-gray-500">
-                    {t("login.terms_prefix")}
+                    <Label htmlFor="agree-terms" className="cursor-pointer text-xs text-gray-500">
+                      {t("login.terms_prefix")}
+                    </Label>
                     <button
                       type="button"
                       className="ml-1 cursor-pointer text-orange-600 hover:underline"
@@ -816,7 +813,7 @@ export default function LoginForm() {
                       {t("login.privacy_policy")}
                     </button>
                   </span>
-                </label>
+                </div>
 
                 <button
                   type="submit"
