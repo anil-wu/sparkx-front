@@ -36,6 +36,7 @@ ts-debug.log*
 # local tooling caches
 .bun-cache/
 .tmp/
+output/playwright/
 
 # vercel
 .vercel
