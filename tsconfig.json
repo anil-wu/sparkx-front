@@ -37,6 +37,10 @@
   ],
   "exclude": [
     "node_modules",
-    "src/test"
+    "src/test",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.bdd.test.ts",
+    "**/*.bdd.test.tsx"
   ]
 }

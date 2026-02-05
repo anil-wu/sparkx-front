@@ -1,5 +1,4 @@
 import { JSDOM } from "jsdom";
-import { afterEach } from "bun:test";
 import { cleanup } from "@testing-library/react";
 
 if (
@@ -22,6 +21,12 @@ if (
   testGlobal.navigator = dom.window.navigator;
 }
 
-afterEach(() => {
-  cleanup();
-});
+const testGlobal = globalThis as typeof globalThis & {
+  afterEach?: (fn: () => void) => void;
+};
+
+if (typeof testGlobal.afterEach === "function") {
+  testGlobal.afterEach(() => {
+    cleanup();
+  });
+}
