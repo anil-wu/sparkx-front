@@ -480,12 +480,12 @@ export default function SparkHomeClient({ isAuthenticated }: SparkHomeClientProp
                 <input
                   type="email"
                   placeholder="电子邮箱"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 caret-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
                 <input
                   type="password"
                   placeholder="密码"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 caret-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
                 <button
                   type="submit"
