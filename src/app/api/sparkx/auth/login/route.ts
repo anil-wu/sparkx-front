@@ -48,7 +48,11 @@ export async function POST(request: NextRequest) {
 
   const result = await fetchSparkxJson<SparkxLoginResponse>("/api/v1/auth/login", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      loginType: "email",
+      email: body.email,
+      password: body.password,
+    }),
   });
 
   if (!result.ok) {

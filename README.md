@@ -39,8 +39,15 @@ bun run dev
 
 - `src/app/api/sparkx/auth/login/route.ts`
 - 前端提交邮箱/密码（注册页会额外带 `username`）
-- 服务端转发到：`POST /api/v1/auth/login`
+- 服务端转发到：`POST /api/v1/auth/login`（`loginType=email`）
 - 登录成功后会写入 HttpOnly 会话 Cookie（`sparkx_session`）
+
+**Google 登录代理路由**
+
+- `src/app/api/sparkx/auth/login-google/route.ts`
+- 前端提交 Google `idToken`
+- 服务端转发到：`POST /api/v1/auth/login`（`loginType=google`）
+- 登录成功后写入 `sparkx_session` Cookie
 
 **退出登录路由**
 
@@ -73,11 +80,13 @@ bun run dev
 ```bash
 SPARKX_API_BASE_URL=http://47.112.97.49:6001
 SPARKX_SESSION_SECRET=replace-with-a-strong-random-secret
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=replace-with-google-oauth-client-id
 SPARKX_SESSION_MAX_AGE=2592000
 ```
 
 > `SPARKX_API_BASE_URL`：外部业务 API 地址（支持 `http://` 或 `https://`）。
 > `SPARKX_SESSION_SECRET`：用于签名会话 Cookie，生产环境务必配置高强度随机值。
+> `NEXT_PUBLIC_GOOGLE_CLIENT_ID`：Google 登录按钮使用的 OAuth Client ID（Web 应用类型）。
 > `SPARKX_SESSION_MAX_AGE`：会话有效期（秒），默认 30 天。
 
 ## 构建生产版本
