@@ -140,4 +140,6 @@ export const mapSparkxProject = (project: SparkxProject): Project => ({
       : undefined,
 });
 
+export const getSparkxApiBaseUrl = (): string => SPARKX_API_BASE_URL;
+
 export type { SparkxProject, SparkxPagedResponse };
