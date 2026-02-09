@@ -21,7 +21,11 @@ type CreateProjectDialogProps = {
   isOpen: boolean;
   isSubmitting: boolean;
   onCancel: () => void;
-  onSubmit: (input: { name: string; coverImage?: string }) => Promise<void> | void;
+  onSubmit: (input: {
+    name: string;
+    coverImage?: string;
+    coverFile?: File;
+  }) => Promise<void> | void;
 };
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -49,12 +53,14 @@ export default function CreateProjectDialog({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState("");
   const [coverImage, setCoverImage] = useState<string | undefined>(undefined);
+  const [coverFile, setCoverFile] = useState<File | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const resetForm = () => {
     setName("");
     setCoverImage(undefined);
+    setCoverFile(undefined);
     setError(null);
     setIsDragOver(false);
   };
@@ -68,6 +74,7 @@ export default function CreateProjectDialog({
     try {
       const preview = await readFileAsDataUrl(file);
       setCoverImage(preview);
+      setCoverFile(file);
       setError(null);
     } catch {
       setError(t("projects.create_dialog.cover_invalid"));
@@ -94,6 +101,7 @@ export default function CreateProjectDialog({
     await onSubmit({
       name: trimmedName,
       coverImage,
+      coverFile,
     });
   };
 

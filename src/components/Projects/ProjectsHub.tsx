@@ -11,6 +11,8 @@ import {
   createProject,
   deleteProjectById,
   listProjects,
+  uploadProjectCover,
+  updateProjectById,
 } from "@/lib/projects-api";
 
 const pickFallbackCover = (index: number) => {
@@ -77,6 +79,7 @@ export default function ProjectsHub() {
   const handleCreateProject = async (input?: {
     name?: string;
     coverImage?: string;
+    coverFile?: File;
   }) => {
     setError(null);
     setIsCreatingProject(true);
@@ -85,10 +88,22 @@ export default function ProjectsHub() {
         name: input?.name || t("projects.untitled_project"),
         description: t("projects.untitled_description"),
       });
+
+      let coverImage = input?.coverImage || project.coverImage;
+      if (input?.coverFile) {
+        const coverFileId = await uploadProjectCover(project.id, input.coverFile);
+        await updateProjectById(project.id, {
+          name: project.name,
+          description: project.description,
+          coverFileId,
+        });
+        coverImage = `/api/files/${coverFileId}/content`;
+      }
+
       setProjects((prev) => [
         {
           ...project,
-          coverImage: input?.coverImage || project.coverImage,
+          coverImage,
         },
         ...prev,
       ]);

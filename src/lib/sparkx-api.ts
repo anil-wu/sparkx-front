@@ -4,6 +4,7 @@ type SparkxProject = {
   id: number;
   name: string;
   description: string;
+  coverFileId?: number;
   ownerId: number;
   status: "active" | "archived" | string;
   createdAt: string;
@@ -133,6 +134,10 @@ export const mapSparkxProject = (project: SparkxProject): Project => ({
   description: project.description,
   createdAt: toIsoString(project.createdAt),
   updatedAt: toIsoString(project.updatedAt),
+  coverImage:
+    typeof project.coverFileId === "number" && project.coverFileId > 0
+      ? `/api/files/${project.coverFileId}/content`
+      : undefined,
 });
 
 export type { SparkxProject, SparkxPagedResponse };

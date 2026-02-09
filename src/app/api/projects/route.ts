@@ -57,9 +57,13 @@ export async function POST(request: NextRequest) {
   const session = getSparkxSessionFromHeaders(request.headers);
   if (!session) return unauthorizedResponse();
 
-  let body: { name?: string; description?: string };
+  let body: { name?: string; description?: string; coverFileId?: number };
   try {
-    body = (await request.json()) as { name?: string; description?: string };
+    body = (await request.json()) as {
+      name?: string;
+      description?: string;
+      coverFileId?: number;
+    };
   } catch {
     body = {};
   }
@@ -67,6 +71,10 @@ export async function POST(request: NextRequest) {
   const ownerId = session.userId;
   const name = body.name?.trim() || "Untitled Project";
   const description = body.description?.trim() || "";
+  const coverFileId =
+    typeof body.coverFileId === "number" && Number.isInteger(body.coverFileId)
+      ? body.coverFileId
+      : 0;
 
   const result = await fetchSparkxJson<SparkxProject>("/api/v1/projects", {
     method: "POST",
@@ -77,6 +85,7 @@ export async function POST(request: NextRequest) {
       userId: ownerId,
       name,
       description,
+      coverFileId,
     }),
   });
 

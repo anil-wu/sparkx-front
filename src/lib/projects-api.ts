@@ -9,6 +9,14 @@ type ProjectsListResponse = {
   };
 };
 
+type PreUploadResponse = {
+  uploadUrl: string;
+  fileId: number;
+  versionId: number;
+  versionNumber: number;
+  contentType: string;
+};
+
 const parseResponseError = async (response: Response): Promise<string> => {
   const text = await response.text();
   if (!text) return `Request failed with status ${response.status}`;
@@ -61,12 +69,14 @@ export const getProjectById = async (projectId: string): Promise<Project> =>
 export const createProject = async (input?: {
   name?: string;
   description?: string;
+  coverFileId?: number;
 }): Promise<Project> =>
   requestJson<Project>("/api/projects", {
     method: "POST",
     body: JSON.stringify({
       name: input?.name,
       description: input?.description,
+      coverFileId: input?.coverFileId,
     }),
   });
 
@@ -81,6 +91,7 @@ export const updateProjectById = async (
   updates: {
     name: string;
     description: string;
+    coverFileId?: number;
     status?: "active" | "archived";
   },
 ): Promise<void> => {
@@ -88,4 +99,56 @@ export const updateProjectById = async (
     method: "PUT",
     body: JSON.stringify(updates),
   });
+};
+
+const getHexDigest = async (file: File): Promise<string> => {
+  const buffer = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+const extensionFromFile = (file: File): string => {
+  const fromName = file.name.split(".").pop()?.toLowerCase() || "";
+  if (fromName) return fromName;
+  if (file.type === "image/jpeg") return "jpg";
+  if (file.type === "image/png") return "png";
+  if (file.type === "image/webp") return "webp";
+  return "bin";
+};
+
+export const uploadProjectCover = async (
+  projectId: string,
+  file: File,
+): Promise<number> => {
+  const hash = await getHexDigest(file);
+  const fileFormat = extensionFromFile(file);
+
+  const preUpload = await requestJson<PreUploadResponse>("/api/files/preupload", {
+    method: "POST",
+    body: JSON.stringify({
+      projectId: Number(projectId),
+      name: `cover-${Date.now()}.${fileFormat}`,
+      fileCategory: "image",
+      fileFormat,
+      sizeBytes: file.size,
+      hash,
+      contentType: file.type || "application/octet-stream",
+    }),
+  });
+
+  const uploadResp = await fetch(preUpload.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": preUpload.contentType || file.type || "application/octet-stream",
+    },
+    body: file,
+  });
+
+  if (!uploadResp.ok) {
+    throw new Error(`Upload failed with status ${uploadResp.status}`);
+  }
+
+  return preUpload.fileId;
 };

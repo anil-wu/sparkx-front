@@ -94,11 +94,17 @@ export async function PUT(
     return NextResponse.json({ message: "Invalid project id" }, { status: 400 });
   }
 
-  let body: { name?: string; description?: string; status?: "active" | "archived" };
+  let body: {
+    name?: string;
+    description?: string;
+    coverFileId?: number;
+    status?: "active" | "archived";
+  };
   try {
     body = (await request.json()) as {
       name?: string;
       description?: string;
+      coverFileId?: number;
       status?: "active" | "archived";
     };
   } catch {
@@ -107,6 +113,10 @@ export async function PUT(
 
   const name = body.name?.trim() || "Untitled Project";
   const description = body.description?.trim() || "";
+  const coverFileId =
+    typeof body.coverFileId === "number" && Number.isInteger(body.coverFileId)
+      ? body.coverFileId
+      : 0;
   const status = body.status === "archived" ? "archived" : "active";
 
   const result = await fetchSparkxJson<{ code: number; msg: string }>(
@@ -119,6 +129,7 @@ export async function PUT(
       body: JSON.stringify({
         name,
         description,
+        coverFileId,
         status,
       }),
     },
