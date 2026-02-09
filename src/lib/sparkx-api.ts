@@ -33,20 +33,21 @@ type SparkxApiSuccess<T> = {
 
 export type SparkxApiResult<T> = SparkxApiSuccess<T> | SparkxApiFailure;
 
-const DEFAULT_SPARKX_API_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? "http://service:6001"
-    : "http://47.112.97.49:6001";
-
-const normalizeBaseURL = (raw?: string): string => {
-  const source = raw?.trim() || DEFAULT_SPARKX_API_BASE_URL;
+const normalizeBaseURL = (raw: string): string => {
+  const source = raw.trim();
   const withProtocol = /^https?:\/\//i.test(source)
     ? source
     : `http://${source}`;
   return withProtocol.replace(/\/$/, "");
 };
 
-const SPARKX_API_BASE_URL = normalizeBaseURL(process.env.SPARKX_API_BASE_URL);
+const SPARKX_API_BASE_URL = (() => {
+  const raw = process.env.SPARKX_API_BASE_URL;
+  if (!raw || !raw.trim()) {
+    throw new Error("Missing required environment variable: SPARKX_API_BASE_URL");
+  }
+  return normalizeBaseURL(raw);
+})();
 
 const parseJsonSafely = async (response: Response): Promise<unknown> => {
   const text = await response.text();
@@ -81,6 +82,7 @@ export const fetchSparkxJson = async <T>(
   init?: RequestInit,
 ): Promise<SparkxApiResult<T>> => {
   try {
+    console.log(`${SPARKX_API_BASE_URL}${path}`);
     const response = await fetch(`${SPARKX_API_BASE_URL}${path}`, {
       ...init,
       cache: "no-store",
@@ -92,6 +94,7 @@ export const fetchSparkxJson = async <T>(
     const payload = await parseJsonSafely(response);
 
     if (!response.ok) {
+      console.error(`${SPARKX_API_BASE_URL}${path}`, response.status, payload);
       return {
         ok: false,
         status: response.status,
@@ -99,12 +102,14 @@ export const fetchSparkxJson = async <T>(
       };
     }
 
+    console.log(`${SPARKX_API_BASE_URL}${path}`, response.status, payload);
     return {
       ok: true,
       status: response.status,
       data: payload as T,
     };
   } catch (error) {
+    console.error(`${SPARKX_API_BASE_URL}${path}`, error);
     return {
       ok: false,
       status: 502,
