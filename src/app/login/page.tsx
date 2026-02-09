@@ -16,10 +16,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const modeParam = searchParams?.mode;
   const modeValue = Array.isArray(modeParam) ? modeParam[0] : modeParam;
   const initialMode = modeValue === "register" ? "register" : "login";
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 
   if (session) {
     redirect("/projects");
   }
 
-  return <LoginForm initialMode={initialMode} />;
+  return <LoginForm initialMode={initialMode} googleClientId={googleClientId} />;
 }

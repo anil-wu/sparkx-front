@@ -27,11 +27,12 @@ export default function RootLayout({
 }>) {
   const locale = getRequestLocale();
   const messages = getMessages(locale);
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 
   return (
     <html lang={locale}>
       <body className={inter.className}>
-        <Providers locale={locale} messages={messages}>
+        <Providers locale={locale} messages={messages} googleClientId={googleClientId}>
           {children}
         </Providers>
       </body>

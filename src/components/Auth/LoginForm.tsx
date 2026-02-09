@@ -64,6 +64,7 @@ type PasswordVisibilityState = {
 
 type LoginFormProps = {
   initialMode?: Mode;
+  googleClientId?: string;
 };
 
 type FloatingInputProps = {
@@ -89,7 +90,6 @@ type FloatingPasswordInputProps = Omit<FloatingInputProps, "type" | "rightSlot">
 };
 
 const REDIRECT_AFTER_AUTH = "/projects";
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
 
 const INITIAL_LOGIN_FORM: LoginFormState = {
   email: "",
@@ -318,7 +318,7 @@ const loginWithSparkxGoogle = async (
   }
 };
 
-export default function LoginForm({ initialMode = "login" }: LoginFormProps) {
+export default function LoginForm({ initialMode = "login", googleClientId }: LoginFormProps) {
   const router = useRouter();
   const { t } = useI18n();
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -346,7 +346,7 @@ export default function LoginForm({ initialMode = "login" }: LoginFormProps) {
 
   const isLoginSubmitting = pending && pendingAction === "login";
   const isRegisterSubmitting = pending && pendingAction === "register";
-  const googleLoginEnabled = Boolean(GOOGLE_CLIENT_ID);
+  const googleLoginEnabled = Boolean(googleClientId?.trim());
 
   const setLoginEmail = (value: string) => {
     setLoginForm((prev) => ({ ...prev, email: value }));

@@ -10,10 +10,12 @@ import type { Messages } from "@/i18n/messages";
 export default function Providers({
   locale,
   messages,
+  googleClientId,
   children,
 }: {
   locale: Locale;
   messages: Messages;
+  googleClientId?: string;
   children: ReactNode;
 }) {
   const content = (
@@ -22,7 +24,6 @@ export default function Providers({
     </I18nProvider>
   );
 
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
   if (!googleClientId) {
     return content;
   }
