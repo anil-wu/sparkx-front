@@ -79,15 +79,15 @@ bun run dev
 
 ```bash
 SPARKX_API_BASE_URL=http://47.112.97.49:6001
-SPARKX_SESSION_SECRET=replace-with-a-strong-random-secret
 GOOGLE_CLIENT_ID=replace-with-google-oauth-client-id
-SPARKX_SESSION_MAX_AGE=2592000
+SESSION_SECRET=replace-with-a-strong-random-secret
+SESSION_MAX_AGE=2592000
 ```
 
 > `SPARKX_API_BASE_URL`：外部业务 API 地址（支持 `http://` 或 `https://`）。
-> `SPARKX_SESSION_SECRET`：用于签名会话 Cookie，生产环境务必配置高强度随机值。
 > `GOOGLE_CLIENT_ID`：Google 登录按钮使用的 OAuth Client ID（Web 应用类型）。
-> `SPARKX_SESSION_MAX_AGE`：会话有效期（秒），默认 30 天。
+> `SESSION_SECRET`：用于签名会话 Cookie，生产环境务必配置高强度随机值。
+> `SESSION_MAX_AGE`：会话有效期（秒），默认 30 天。
 
 ## 构建生产版本
 

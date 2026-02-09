@@ -16,15 +16,15 @@ const SESSION_COOKIE_NAME = "sparkx_session";
 const DEFAULT_SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 
 const getSessionSecret = (): string => {
-  const secret = process.env.SPARKX_SESSION_SECRET;
+  const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    throw new Error("Missing session secret. Set SPARKX_SESSION_SECRET.");
+    throw new Error("Missing session secret. Set SESSION_SECRET.");
   }
   return secret;
 };
 
 const getSessionMaxAge = (): number => {
-  const raw = process.env.SPARKX_SESSION_MAX_AGE;
+  const raw = process.env.SESSION_MAX_AGE;
   const parsed = Number.parseInt(raw ?? "", 10);
   if (Number.isInteger(parsed) && parsed > 0) {
     return parsed;
