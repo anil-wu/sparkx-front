@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { fetchSparkxJson } from "@/lib/sparkx-api";
-import { applySparkxSessionCookie } from "@/lib/sparkx-session";
+import { applySparkxSessionCookie, getSparkxSessionCookieSecure } from "@/lib/sparkx-session";
 
 type SparkxLoginResponse = {
   userId: number;
@@ -93,6 +93,8 @@ export async function POST(request: NextRequest) {
     email: body.email,
     username,
     accessToken: result.data.token,
+  }, {
+    secure: getSparkxSessionCookieSecure(request.headers),
   });
   return response;
 }

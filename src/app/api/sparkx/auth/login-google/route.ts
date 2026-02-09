@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { fetchSparkxJson } from "@/lib/sparkx-api";
-import { applySparkxSessionCookie } from "@/lib/sparkx-session";
+import { applySparkxSessionCookie, getSparkxSessionCookieSecure } from "@/lib/sparkx-session";
 
 type SparkxGoogleLoginResponse = {
   userId: number;
@@ -132,6 +132,8 @@ export async function POST(request: Request) {
     email: sessionEmail,
     username,
     accessToken: result.data.token,
+  }, {
+    secure: getSparkxSessionCookieSecure(request.headers),
   });
 
   return response;

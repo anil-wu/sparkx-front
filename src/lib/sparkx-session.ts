@@ -14,6 +14,7 @@ type HeaderCarrier = {
 
 const SESSION_COOKIE_NAME = "sparkx_session";
 const DEFAULT_SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+const DEFAULT_SESSION_COOKIE_SECURE = process.env.NODE_ENV === "production";
 
 const getSessionSecret = (): string => {
   const secret = process.env.SESSION_SECRET;
@@ -122,15 +123,43 @@ export const getSparkxSessionFromHeaders = (
   return decodeSessionToken(rawToken);
 };
 
+const getCookieSecureOverride = (): boolean | null => {
+  const raw = process.env.SESSION_COOKIE_SECURE;
+  if (!raw) return null;
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return null;
+};
+
+export const getSparkxSessionCookieSecure = (headers: HeaderCarrier): boolean => {
+  const override = getCookieSecureOverride();
+  if (override !== null) return override;
+
+  const forwardedProto = headers.get("x-forwarded-proto");
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
+  }
+
+  const forwardedSsl = headers.get("x-forwarded-ssl");
+  if (forwardedSsl && forwardedSsl.trim().toLowerCase() === "on") {
+    return true;
+  }
+
+  return DEFAULT_SESSION_COOKIE_SECURE;
+};
+
 export const applySparkxSessionCookie = (
   response: NextResponse,
   session: SparkxSession,
+  options?: { secure?: boolean },
 ) => {
+  const secure = options?.secure ?? DEFAULT_SESSION_COOKIE_SECURE;
   response.cookies.set(SESSION_COOKIE_NAME, encodeSessionToken(session), {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     maxAge: getSessionMaxAge(),
   });
 };
@@ -140,7 +169,7 @@ export const clearSparkxSessionCookie = (response: NextResponse) => {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: DEFAULT_SESSION_COOKIE_SECURE,
     maxAge: 0,
   });
 };
