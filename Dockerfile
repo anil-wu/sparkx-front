@@ -14,6 +14,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+RUN test -f .env || touch .env
 RUN bun run build
 
 # Production image, copy all the files and run next
@@ -34,6 +35,7 @@ RUN chown nextjs:bunjs .next
 # Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:bunjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:bunjs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:bunjs /app/.env ./.env
 
 USER nextjs
 
