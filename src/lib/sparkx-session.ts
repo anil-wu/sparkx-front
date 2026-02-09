@@ -164,12 +164,16 @@ export const applySparkxSessionCookie = (
   });
 };
 
-export const clearSparkxSessionCookie = (response: NextResponse) => {
+export const clearSparkxSessionCookie = (
+  response: NextResponse,
+  options?: { secure?: boolean },
+) => {
+  const secure = options?.secure ?? DEFAULT_SESSION_COOKIE_SECURE;
   response.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: DEFAULT_SESSION_COOKIE_SECURE,
+    secure,
     maxAge: 0,
   });
 };

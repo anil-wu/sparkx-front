@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
-import { clearSparkxSessionCookie } from "@/lib/sparkx-session";
+import { clearSparkxSessionCookie, getSparkxSessionCookieSecure } from "@/lib/sparkx-session";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const response = NextResponse.json({ ok: true });
-  clearSparkxSessionCookie(response);
+  const secure = getSparkxSessionCookieSecure(request.headers);
+  clearSparkxSessionCookie(response, { secure });
+  clearSparkxSessionCookie(response, { secure: !secure });
   return response;
 }
