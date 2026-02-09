@@ -33,7 +33,10 @@ type SparkxApiSuccess<T> = {
 
 export type SparkxApiResult<T> = SparkxApiSuccess<T> | SparkxApiFailure;
 
-const DEFAULT_SPARKX_API_BASE_URL = "http://47.112.97.49:6001";
+const DEFAULT_SPARKX_API_BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? "http://service:6001"
+    : "http://47.112.97.49:6001";
 
 const normalizeBaseURL = (raw?: string): string => {
   const source = raw?.trim() || DEFAULT_SPARKX_API_BASE_URL;
