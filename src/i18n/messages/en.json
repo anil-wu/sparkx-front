@@ -13,7 +13,8 @@
     "signed_in": "Signed in",
     "projects": "Projects",
     "sign_out": "Sign out",
-    "signing_out": "Signing out..."
+    "signing_out": "Signing out...",
+    "sign_out_failed": "Sign-out request failed. Redirecting to login."
   },
   "login": {
     "tab_login": "Sign in",

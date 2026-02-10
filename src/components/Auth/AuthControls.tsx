@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
 import { useI18n } from "@/i18n/client";
@@ -19,6 +19,7 @@ export default function AuthControls({
 }: AuthControlsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const { t } = useI18n();
   const buttonClassName = compact
     ? "rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
@@ -29,17 +30,31 @@ export default function AuthControls({
   };
 
   const handleSignOut = () => {
+    setError(null);
     startTransition(async () => {
-      await fetch("/api/sparkx/auth/logout", {
-        method: "POST",
-      });
-      router.push("/login");
-      router.refresh();
+      try {
+        const response = await fetch("/api/sparkx/auth/logout", {
+          method: "POST",
+        });
+
+        if (!response.ok) {
+          setError(t("auth.sign_out_failed"));
+        }
+      } catch {
+        setError(t("auth.sign_out_failed"));
+      } finally {
+        window.location.href = "/login";
+      }
     });
   };
 
   return (
     <div className={className ?? "flex items-center gap-2"}>
+      {error && (
+        <span className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs text-red-700">
+          {error}
+        </span>
+      )}
       {!compact && label && (
         <span className="hidden rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600 md:inline-block">
           {label}

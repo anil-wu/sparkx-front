@@ -13,7 +13,8 @@
     "signed_in": "已登录",
     "projects": "项目列表",
     "sign_out": "退出",
-    "signing_out": "退出中..."
+    "signing_out": "退出中...",
+    "sign_out_failed": "退出请求失败，正在跳转登录页。"
   },
   "login": {
     "tab_login": "登录",
