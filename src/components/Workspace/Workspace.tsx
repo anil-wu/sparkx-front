@@ -41,42 +41,42 @@ export default function Workspace({
   };
 
   return (
-    <div className={`flex ${heightClassName} w-full bg-gray-50`}>
-      {/* 左边：ChatPanel */}
-      <div className={`transition-all duration-300 ${isRightPanelCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'}`}>
-        <ChatPanel isCollapsed={isRightPanelCollapsed} togglePanel={toggleRightPanel} />
+    <div className={`flex flex-col ${heightClassName} w-full bg-gray-50`}>
+      {/* 上边：WorkspaceHeader */}
+      <div className="flex-shrink-0 p-4 bg-white border-b border-gray-200">
+        <WorkspaceHeader 
+          projectId={projectId} 
+          label={userLabel}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
       </div>
 
-      {/* 右边：分上下布局 */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* 上边：WorkspaceHeader */}
-        <div className="flex-shrink-0 p-4 bg-white border-b border-gray-200">
-          <WorkspaceHeader 
-            projectId={projectId} 
-            label={userLabel}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
+      {/* 下边：左右布局 */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* 左边：ChatPanel */}
+        <div className={`transition-all duration-300 ${isRightPanelCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'}`}>
+          <ChatPanel isCollapsed={isRightPanelCollapsed} togglePanel={toggleRightPanel} />
         </div>
 
-        {/* 下边：内容区域 */}
+        {/* 右边：内容区域 */}
         <div className="flex flex-1 overflow-hidden relative">
           {viewMode === 'intro' ? (
-            /* 项目介绍模式 */
+            // 项目介绍模式
             <ProjectIntroPanel projectId={projectId} />
           ) : viewMode === 'resource' ? (
-            /* 资源模式：CanvasArea（已包含 HierarchyPanel） */
+            // 资源模式：CanvasArea（已包含 HierarchyPanel）
             <CanvasArea 
               isSidebarCollapsed={isSidebarCollapsed}
             />
           ) : viewMode === 'code' ? (
-            /* Code 模式：显示 CodeArea 组件 */
+            // Code 模式：显示 CodeArea 组件
             <CodeArea 
               isSidebarCollapsed={isSidebarCollapsed}
               toggleSidebar={toggleSidebar}
             />
           ) : (
-            /* 预览模式：只显示 GamePanel */
+            // 预览模式：只显示 GamePanel
             <GamePanel />
           )}
         </div>

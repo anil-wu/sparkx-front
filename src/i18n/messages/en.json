@@ -129,7 +129,8 @@
     "resource": "Resource",
     "preview": "Preview",
     "code": "Code",
-    "project_info": "Project Info"
+    "project_info": "Project Info",
+    "home": "Home"
   },
   "hierarchy": {
     "title": "Layers ({count})",

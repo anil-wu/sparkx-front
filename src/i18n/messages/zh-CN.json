@@ -129,7 +129,8 @@
     "resource": "资源",
     "preview": "预览",
     "code": "代码",
-    "project_info": "项目信息"
+    "project_info": "项目信息",
+    "home": "主页"
   },
   "hierarchy": {
     "title": "图层 ({count})",
