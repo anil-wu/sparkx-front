@@ -7,14 +7,14 @@ import GamePanel from "./game/GamePanel";
 import CanvasArea from "./CanvasArea";
 import ChatPanel from "./chat/ChatPanel";
 import WorkspaceHeader from "./WorkspaceHeader";
-import { FolderOpen, Gamepad2, Layers, PenTool } from "lucide-react";
+import { FolderOpen, Layers } from "lucide-react";
 import { useI18n } from "@/i18n/client";
 
 type WorkspaceProps = {
   projectId?: string;
   userLabel?: string;
   initialLeftPanel?: 'hierarchy' | 'project';
-  initialViewMode?: 'editor' | 'game';
+  initialViewMode?: 'resource' | 'preview';
   heightClassName?: string;
 };
 
@@ -22,12 +22,12 @@ export default function Workspace({
   projectId,
   userLabel,
   initialLeftPanel = 'hierarchy',
-  initialViewMode = 'editor',
+  initialViewMode = 'resource',
   heightClassName = 'h-screen',
 }: WorkspaceProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
-  const [viewMode, setViewMode] = useState<'editor' | 'game'>(initialViewMode);
+  const [viewMode, setViewMode] = useState<'resource' | 'preview'>(initialViewMode);
   const [leftPanel, setLeftPanel] = useState<'hierarchy' | 'project'>(initialLeftPanel);
 
   const toggleSidebar = () => {
@@ -49,55 +49,48 @@ export default function Workspace({
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* 上边：WorkspaceHeader */}
         <div className="flex-shrink-0 p-4 bg-white border-b border-gray-200">
-          <WorkspaceHeader projectId={projectId} label={userLabel} />
+          <WorkspaceHeader 
+            projectId={projectId} 
+            label={userLabel}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
         </div>
 
-        {/* 下边：编辑区/游戏区（左） + 面板区域（右） */}
+        {/* 下边：内容区域 */}
         <div className="flex flex-1 overflow-hidden relative">
-          {/* 左侧编辑/游戏区域 */}
-          <div className="flex flex-1 bg-gray-50 overflow-hidden relative">
-            {/* View Mode Switcher */}
-            <ViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
+          {viewMode === 'resource' ? (
+            <>
+              {/* 左侧资源编辑区域 */}
+              <div className="flex flex-1 bg-gray-50 overflow-hidden relative">
+                <CanvasArea 
+                  isSidebarCollapsed={isSidebarCollapsed}
+                />
+              </div>
+              
+              {/* 右侧面板区域 */}
+              <div className={`transition-all duration-300 flex-shrink-0 ${isSidebarCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'} flex flex-col gap-3`}>
+                {!isSidebarCollapsed && (
+                  <LeftPanelSwitcher leftPanel={leftPanel} onChange={setLeftPanel} />
+                )}
 
-            
-            {viewMode === 'editor' ? (
-              <CanvasArea 
-                isSidebarCollapsed={isSidebarCollapsed}
-              />
-            ) : (
-              <GamePanel />
-            )}
-          </div>
-          
-          {/* 右侧面板区域 */}
-          <div className={`transition-all duration-300 flex-shrink-0 ${isSidebarCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'} flex flex-col gap-3`}>
-            {!isSidebarCollapsed && (
-              <LeftPanelSwitcher leftPanel={leftPanel} onChange={setLeftPanel} />
-            )}
-
-            {leftPanel === 'hierarchy' ? (
-              <HierarchyPanel 
-                isCollapsed={isSidebarCollapsed} 
-                toggleSidebar={toggleSidebar}
-              />
-            ) : (
-              <ProjectPanel 
-                isCollapsed={isSidebarCollapsed}
-                toggleSidebar={toggleSidebar}
-              />
-            )}
-          </div>
-        </div>
-
-            
-            {viewMode === 'editor' ? (
-              <CanvasArea 
-                isSidebarCollapsed={isSidebarCollapsed}
-              />
-            ) : (
-              <GamePanel />
-            )}
-          </div>
+                {leftPanel === 'hierarchy' ? (
+                  <HierarchyPanel 
+                    isCollapsed={isSidebarCollapsed} 
+                    toggleSidebar={toggleSidebar}
+                  />
+                ) : (
+                  <ProjectPanel 
+                    isCollapsed={isSidebarCollapsed}
+                    toggleSidebar={toggleSidebar}
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            /* 预览模式：只显示 GamePanel */
+            <GamePanel />
+          )}
         </div>
       </div>
     </div>
@@ -143,41 +136,4 @@ function LeftPanelSwitcher({
   );
 }
 
-function ViewModeSwitcher({
-  viewMode,
-  onChange,
-}: {
-  viewMode: "editor" | "game";
-  onChange: (mode: "editor" | "game") => void;
-}) {
-  const { t } = useI18n();
 
-  return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white p-1 rounded-lg shadow-sm border border-gray-200 flex items-center z-50">
-      <button
-        type="button"
-        onClick={() => onChange("editor")}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-          viewMode === "editor"
-            ? "bg-gray-100 text-gray-900"
-            : "text-gray-500 hover:text-gray-900"
-        }`}
-      >
-        <PenTool size={16} />
-        {t("workspace.editor")}
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("game")}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-          viewMode === "game"
-            ? "bg-gray-100 text-gray-900"
-            : "text-gray-500 hover:text-gray-900"
-        }`}
-      >
-        <Gamepad2 size={16} />
-        {t("workspace.game")}
-      </button>
-    </div>
-  );
-}

@@ -125,7 +125,9 @@
     "layers": "Layers",
     "project": "Project",
     "editor": "Editor",
-    "game": "Game"
+    "game": "Game",
+    "resource": "Resource",
+    "preview": "Preview"
   },
   "hierarchy": {
     "title": "Layers ({count})",

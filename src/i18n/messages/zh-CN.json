@@ -125,7 +125,9 @@
     "layers": "图层",
     "project": "项目",
     "editor": "编辑",
-    "game": "游戏"
+    "game": "游戏",
+    "resource": "资源",
+    "preview": "预览"
   },
   "hierarchy": {
     "title": "图层 ({count})",

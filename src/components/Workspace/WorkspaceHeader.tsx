@@ -4,17 +4,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { PenTool, Gamepad2 } from "lucide-react";
 import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
 import { useI18n } from "@/i18n/client";
 
 type WorkspaceHeaderProps = {
   projectId?: string;
   label?: string;
+  viewMode?: 'resource' | 'preview';
+  onViewModeChange?: (mode: 'resource' | 'preview') => void;
 };
 
 export default function WorkspaceHeader({
   projectId,
   label,
+  viewMode = 'resource',
+  onViewModeChange,
 }: WorkspaceHeaderProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -55,6 +60,34 @@ export default function WorkspaceHeader({
             {t("projects.intro")}
           </Link>
         )}
+        
+        {/* View Mode Switcher */}
+        <div className="ml-4 flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+          <button
+            type="button"
+            onClick={() => onViewModeChange?.('resource')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'resource'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <PenTool size={14} />
+            {t("workspace.resource")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewModeChange?.('preview')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'preview'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Gamepad2 size={14} />
+            {t("workspace.preview")}
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
