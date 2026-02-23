@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import SparkHomeClient from "@/components/Home/SparkHomeClient";
+import SparkHome from "@/components/Home/SparkHome";
 import { getSparkxSessionFromHeaders } from "@/lib/sparkx-session";
 
 export default async function HomePage() {
@@ -13,5 +13,5 @@ export default async function HomePage() {
     redirect("/home");
   }
 
-  return <SparkHomeClient isAuthenticated={false} />;
+  return <SparkHome isAuthenticated={false} />;
 }

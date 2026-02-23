@@ -42,11 +42,11 @@ function createParticle(width: number, height: number): Particle {
   };
 }
 
-type SparkHomeClientProps = {
+type SparkHomeProps = {
   isAuthenticated: boolean;
 };
 
-export default function SparkHomeClient({ isAuthenticated }: SparkHomeClientProps) {
+export default function SparkHome({ isAuthenticated }: SparkHomeProps) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 

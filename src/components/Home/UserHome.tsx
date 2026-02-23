@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BookOpenText,
@@ -10,6 +11,7 @@ import {
   Flame,
   Gamepad2,
   Layers,
+  LogOut,
   MoreHorizontal,
   Play,
   Plus,
@@ -20,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 
+import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
 import CreateProjectDialog from "@/components/Projects/CreateProjectDialog";
 import { useI18n } from "@/i18n/client";
 import { type Project } from "@/lib/projects";
@@ -144,18 +147,50 @@ export default function UserHome({ session }: UserHomeProps) {
     }
   };
 
+  const router = useRouter();
   const userDisplayName = session.username || session.email.split("@")[0];
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await fetch("/api/sparkx/auth/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Ignore error, always redirect to login
+    } finally {
+      window.location.href = "/login";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            {t("user_home.welcome", { name: userDisplayName })}
-          </h1>
-          <p className="mt-2 text-base text-slate-600">
-            {t("user_home.subtitle")}
-          </p>
+        <div className="mb-10 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              {t("user_home.welcome", { name: userDisplayName })}
+            </h1>
+            <p className="mt-2 text-base text-slate-600">
+              {t("user_home.subtitle")}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/90 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+              title={t("auth.sign_out")}
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">
+                {isSigningOut ? t("auth.signing_out") : t("auth.sign_out")}
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="mb-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
