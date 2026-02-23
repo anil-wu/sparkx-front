@@ -30,7 +30,7 @@ export default function WorkspaceHeader({
     const fetchProjectInfo = async () => {
       if (!projectId) return;
       try {
-        const response = await fetch(`/api/sparkx/projects/${projectId}`);
+        const response = await fetch(`/api/projects/${projectId}`);
         if (response.ok) {
           const data = await response.json();
           setProjectName(data.name || '');

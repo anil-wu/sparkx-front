@@ -65,6 +65,7 @@ export default function Workspace({
             // 资源模式：CanvasArea（已包含 HierarchyPanel）
             <CanvasArea 
               isSidebarCollapsed={isSidebarCollapsed}
+              projectId={projectId}
             />
           ) : viewMode === 'code' ? (
             // Code 模式：显示 CodeArea 组件

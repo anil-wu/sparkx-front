@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Konva from 'konva';
+import { useSearchParams } from 'next/navigation';
 import ToolsPanel from './editor/ToolsPanel';
 import ImageInspectorBar from './editor/tools/image/InspectorBar';
 import ShapeInspectorBar from './editor/tools/shape/InspectorBar';
@@ -10,7 +11,7 @@ import DrawInspectorBar from './editor/tools/shared/DrawInspectorBar';
 import DrawSelectionToolbar from './editor/tools/shared/DrawSelectionToolbar';
 import TextInspectorBar from './editor/tools/text/InspectorBar';
 import HierarchyPanel from './hierarchy/HierarchyPanel';
-import { ZoomIn, ZoomOut } from 'lucide-react';
+import { ZoomIn, ZoomOut, Trash2 } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { ContextMenu } from './editor/ContextMenu';
 import HistoryControls from './editor/HistoryControls';
@@ -18,12 +19,18 @@ import { BaseElement } from './types/BaseElement';
 import { ElementState } from './types/ElementState';
 import { ToolType } from './types/ToolType';
 import { isDrawTool, isShapeTool, isTextLikeTool } from './types/toolGroups';
+import { useWorkspaceSave } from '@/hooks/useWorkspaceSave';
+import SaveButton from './SaveButton';
+import ConflictDialog from './ConflictDialog';
+import RecycleBinPanel from './RecycleBinPanel';
+import { useI18n } from '@/i18n/client';
 
 // Dynamically import EditorStage to avoid SSR issues with Konva
 const EditorStage = dynamic(() => import('./EditorStage'), { ssr: false });
 
 interface CanvasAreaProps {
   isSidebarCollapsed: boolean;
+  projectId?: string;
 }
 
 type DrawingStyle = { stroke: string; strokeWidth: number };
@@ -57,8 +64,13 @@ const getInspectorPosition = (
 
 export default function CanvasArea({
   isSidebarCollapsed,
+  projectId,
 }: CanvasAreaProps) {
-  const { elements, selectedId, updateElement, activeTool, setActiveTool } = useWorkspaceStore();
+  const searchParams = useSearchParams();
+  const finalProjectId = projectId || searchParams?.get('projectId') || '';
+  const { t } = useI18n();
+  
+  const { elements, selectedId, updateElement, activeTool, setActiveTool, removeElement } = useWorkspaceStore();
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState<CanvasDimensions>({ width: 0, height: 0 });
@@ -67,6 +79,17 @@ export default function CanvasArea({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [stageInstance, setStageInstance] = useState<Konva.Stage | null>(null);
   const [isHierarchyCollapsed, setIsHierarchyCollapsed] = useState(false);
+  
+  const {
+    saveStatus,
+    lastSavedAt,
+    errorMessage,
+    handleSave,
+  } = useWorkspaceSave(finalProjectId ? parseInt(finalProjectId) : 0);
+  
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
+  const [canvasId, setCanvasId] = useState<number | null>(null);
 
   const selectedElement = useMemo(
     () => (selectedId ? elements.find((element) => element.id === selectedId) ?? null : null),
@@ -275,6 +298,22 @@ export default function CanvasArea({
         className="flex-1 relative bg-[#fafafa] overflow-hidden"
         ref={containerRef}
       >
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <SaveButton
+            saveStatus={saveStatus}
+            lastSavedAt={lastSavedAt}
+            onSave={handleSave}
+            errorMessage={errorMessage}
+          />
+          <button
+            onClick={() => setShowRecycleBin(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            title={t('workspace.recycle_bin')}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+
         <ToolsPanel
           isSidebarCollapsed={isSidebarCollapsed}
           activeTool={activeTool}
@@ -337,6 +376,31 @@ export default function CanvasArea({
           toggleSidebar={() => setIsHierarchyCollapsed(!isHierarchyCollapsed)}
         />
       </div>
+
+      {/* Conflict Dialog */}
+      <ConflictDialog
+        isOpen={showConflictDialog}
+        onClose={() => setShowConflictDialog(false)}
+        onUseRemote={() => {
+          // TODO: Implement remote version loading
+          setShowConflictDialog(false);
+        }}
+        onForceSave={() => {
+          handleSave();
+          setShowConflictDialog(false);
+        }}
+      />
+
+      {/* Recycle Bin Panel */}
+      <RecycleBinPanel
+        canvasId={canvasId}
+        isOpen={showRecycleBin}
+        onClose={() => setShowRecycleBin(false)}
+        onRestore={(layerId) => {
+          console.log('Layer restored:', layerId);
+          // TODO: Reload layers from backend
+        }}
+      />
     </div>
   );
 }
