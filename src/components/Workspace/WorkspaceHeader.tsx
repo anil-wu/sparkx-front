@@ -27,7 +27,7 @@ export default function WorkspaceHeader({
   const { t } = useI18n();
 
   const handleGoHome = () => {
-    router.push("/");
+    router.push("/home");
   };
 
   const handleGoProjects = () => {

@@ -203,5 +203,36 @@
     "edit_element": "Edit element",
     "adjust_pose": "Adjust pose",
     "draw": "Draw"
+  },
+  "user_home": {
+    "welcome": "Welcome back, {name}",
+    "subtitle": "Start your creative journey and explore unlimited possibilities",
+    "stats": {
+      "projects": "projects",
+      "active_days": "active days",
+      "completed": "completed projects",
+      "views": "views"
+    },
+    "recent_projects": {
+      "title": "Recent Projects",
+      "subtitle": "Continue your creative work",
+      "view_all": "View all",
+      "new_project": "New Project",
+      "empty_hint": "Create your first project to start your journey"
+    },
+    "quick_start": {
+      "title": "Quick Start",
+      "continue": "Continue Creating",
+      "continue_desc": "Go to project list and continue your game development",
+      "tutorials": "Tutorials",
+      "tutorials_desc": "Learn how to use SparkX for game creation",
+      "templates": "Templates",
+      "templates_desc": "Use preset templates to start quickly"
+    },
+    "featured": {
+      "title": "Explore More",
+      "subtitle": "Discover amazing projects and creative inspiration from the community",
+      "explore": "Explore Community"
+    }
   }
 }

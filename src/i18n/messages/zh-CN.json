@@ -130,7 +130,7 @@
     "preview": "预览",
     "code": "代码",
     "project_info": "项目信息",
-    "home": "主页"
+    "home": "首页"
   },
   "hierarchy": {
     "title": "图层 ({count})",
@@ -203,5 +203,36 @@
     "edit_element": "编辑元素",
     "adjust_pose": "调整姿态",
     "draw": "手绘"
+  },
+  "user_home": {
+    "welcome": "欢迎回来，{name}",
+    "subtitle": "开始你的创意之旅，探索无限可能",
+    "stats": {
+      "projects": "个项目",
+      "active_days": "活跃天数",
+      "completed": "已完成项目",
+      "views": "浏览次数"
+    },
+    "recent_projects": {
+      "title": "最近项目",
+      "subtitle": "继续你的创作",
+      "view_all": "查看全部",
+      "new_project": "新建项目",
+      "empty_hint": "创建你的第一个项目，开启创作之旅"
+    },
+    "quick_start": {
+      "title": "快速开始",
+      "continue": "继续创作",
+      "continue_desc": "进入项目列表，继续你的游戏开发",
+      "tutorials": "教程中心",
+      "tutorials_desc": "学习如何使用 SparkX 进行游戏创作",
+      "templates": "模板库",
+      "templates_desc": "使用预制模板快速开始项目"
+    },
+    "featured": {
+      "title": "探索更多可能",
+      "subtitle": "发现社区中的精彩项目和创意灵感",
+      "explore": "探索社区"
+    }
   }
 }

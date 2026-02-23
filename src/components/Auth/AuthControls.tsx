@@ -25,6 +25,10 @@ export default function AuthControls({
     ? "rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
     : "rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50";
 
+  const handleGoHome = () => {
+    router.push("/home");
+  };
+
   const handleGoProjects = () => {
     router.push("/projects");
   };
@@ -62,10 +66,10 @@ export default function AuthControls({
       )}
       <button
         type="button"
-        onClick={handleGoProjects}
+        onClick={handleGoHome}
         className={buttonClassName}
       >
-        {t("auth.projects")}
+        {t("workspace.home")}
       </button>
       <LanguageSwitcher className={compact ? "inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50" : "inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"} />
       <button

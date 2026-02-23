@@ -89,7 +89,7 @@ type FloatingPasswordInputProps = Omit<FloatingInputProps, "type" | "rightSlot">
   toggleClassName?: string;
 };
 
-const REDIRECT_AFTER_AUTH = "/projects";
+const REDIRECT_AFTER_AUTH = "/home";
 
 const INITIAL_LOGIN_FORM: LoginFormState = {
   email: "",
