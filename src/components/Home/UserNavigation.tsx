@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Folder,
@@ -28,7 +29,9 @@ export default function UserNavigation({
   onTabChange,
 }: UserNavigationProps) {
   const { t } = useI18n();
+  const router = useRouter();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     const handleOpen = () => setIsCreateDialogOpen(true);
@@ -58,8 +61,24 @@ export default function UserNavigation({
 
       window.dispatchEvent(new CustomEvent("project-created"));
       setIsCreateDialogOpen(false);
+      router.push(`/projects/${project.id}/edit`);
     } catch (error) {
       console.error("Failed to create project:", error);
+    }
+  };
+
+  const handleDirectCreate = async () => {
+    if (isCreating) return;
+    setIsCreating(true);
+    try {
+      const project = await createProject({
+        name: t("projects.untitled_project"),
+        description: t("projects.untitled_description"),
+      });
+      router.push(`/projects/${project.id}/edit`);
+    } catch (error) {
+      console.error("Failed to create project:", error);
+      setIsCreating(false);
     }
   };
 
@@ -75,11 +94,12 @@ export default function UserNavigation({
       <div className="fixed left-6 top-1/2 z-50 hidden -translate-y-1/2 flex-col items-center gap-6 rounded-full bg-white px-3 py-6 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-sm transition-all hover:scale-[1.02] lg:flex">
         <button
           type="button"
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="group relative flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 transition-all hover:bg-slate-800 hover:shadow-slate-900/30 active:scale-95"
+          onClick={handleDirectCreate}
+          disabled={isCreating}
+          className="group relative flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/20 transition-all hover:bg-slate-800 hover:shadow-slate-900/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           title={t("sidebar.create_project")}
         >
-          <Plus className="h-6 w-6 transition-transform group-hover:rotate-90" />
+          <Plus className={`h-6 w-6 transition-transform ${isCreating ? "animate-spin" : "group-hover:rotate-90"}`} />
         </button>
 
         <div className="h-px w-8 bg-slate-100" />

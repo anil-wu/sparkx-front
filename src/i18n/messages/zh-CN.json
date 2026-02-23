@@ -84,6 +84,8 @@
     "intro": "项目介绍",
     "no_description": "暂无描述。",
     "delete": "删除项目",
+    "delete_confirm_title": "删除项目",
+    "delete_confirm_message": "确定要删除这个项目吗？此操作无法撤销。",
     "reset_demo": "重置演示项目",
     "untitled_project": "未命名项目",
     "untitled_description": "一个新的项目，已准备好开始编辑。",
@@ -129,6 +131,8 @@
     "gallery_title": "图库"
   },
   "workspace": {
+    "title": "工作空间",
+    "project_id": "项目 ID",
     "layers": "图层",
     "project": "项目",
     "editor": "编辑",

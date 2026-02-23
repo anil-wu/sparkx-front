@@ -10,12 +10,12 @@ import {
   FilePlus2,
   Flame,
   Gamepad2,
-  MoreHorizontal,
   Play,
   Plus,
   Rocket,
   Sparkles,
   Star,
+  Trash2,
   Users,
 } from "lucide-react";
 
@@ -48,6 +48,7 @@ export default function UserHome({ session }: UserHomeProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
     setIsLoading(true);
@@ -83,18 +84,27 @@ export default function UserHome({ session }: UserHomeProps) {
     coverImage: project.coverImage || pickFallbackCover(index),
   }));
 
-  const recentProjects = hydratedProjects.slice(0, 6);
+  const recentProjects = hydratedProjects.slice(0, 3);
 
   const handleDeleteProject = async (projectId: string) => {
     setError(null);
     try {
       await deleteProjectById(projectId);
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      setDeleteConfirmId(null);
     } catch (deleteError) {
       setError(
         deleteError instanceof Error ? deleteError.message : t("projects.empty"),
       );
     }
+  };
+
+  const confirmDelete = (projectId: string) => {
+    setDeleteConfirmId(projectId);
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmId(null);
   };
 
   const handleOpenCreateDialog = () => {
@@ -167,22 +177,12 @@ export default function UserHome({ session }: UserHomeProps) {
                 {t("user_home.recent_projects.subtitle")}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/projects"
-                className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-              >
-                {t("user_home.recent_projects.view_all")}
-              </Link>
-              <button
-                type="button"
-                onClick={handleOpenCreateDialog}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
-                <Plus className="h-4 w-4" />
-                {t("user_home.recent_projects.new_project")}
-              </button>
-            </div>
+            <Link
+              href="/projects"
+              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+            >
+              {t("user_home.recent_projects.view_all")}
+            </Link>
           </div>
 
           {isLoading ? (
@@ -235,7 +235,7 @@ export default function UserHome({ session }: UserHomeProps) {
               {recentProjects.map((project) => (
                 <Link
                   key={project.id}
-                  href={`/projects/${project.id}`}
+                  href={`/projects/${project.id}/edit`}
                   className="group relative overflow-hidden rounded-2xl bg-white shadow-sm transition-all hover:shadow-lg hover:shadow-slate-200/50"
                 >
                   <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
@@ -260,24 +260,25 @@ export default function UserHome({ session }: UserHomeProps) {
                       {project.description}
                     </p>
                     <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          {new Date(project.updatedAt).toLocaleDateString()}
-                        </span>
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {new Date(project.updatedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            confirmDelete(project.id);
+                          }}
+                          className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-red-600"
+                          title={t("projects.delete")}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDeleteProject(project.id);
-                        }}
-                        className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-red-600"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-                    </div>
                   </div>
                 </Link>
               ))}
@@ -356,6 +357,40 @@ export default function UserHome({ session }: UserHomeProps) {
             </Link>
           </div>
         </div>
+
+        {deleteConfirmId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {t("projects.delete_confirm_title")}
+                </h3>
+              </div>
+              <p className="mb-6 text-slate-600">
+                {t("projects.delete_confirm_message")}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={cancelDelete}
+                  className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  {t("projects.create_dialog.cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteProject(deleteConfirmId)}
+                  className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition hover:bg-red-700"
+                >
+                  {t("projects.delete")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </>
   );
 }

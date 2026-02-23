@@ -182,9 +182,10 @@ export default function ProjectsHub() {
         </div>
       ) : (
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {hydratedProjects.map((project) => (
-            <div
+          {hydratedProjects.map((project, index) => (
+            <Link
               key={project.id}
+              href={`/projects/${project.id}/edit`}
               className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="relative h-40 w-full overflow-hidden bg-slate-100">
@@ -197,8 +198,8 @@ export default function ProjectsHub() {
 
               <div className="space-y-3 p-6">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold text-slate-900">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-base font-semibold text-slate-900 group-hover:text-orange-600">
                       {project.name}
                     </h2>
                     <p className="mt-1 line-clamp-2 text-sm text-slate-500">
@@ -208,34 +209,20 @@ export default function ProjectsHub() {
 
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       void handleDeleteProject(project.id);
                     }}
-                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-red-600"
                     aria-label={t("projects.delete")}
+                    title={t("projects.delete")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <Link
-                    href={`/projects/${project.id}/edit`}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
-                  >
-                    <Rocket className="h-4 w-4" />
-                    {t("projects.open_editor")}
-                  </Link>
-                  <Link
-                    href={`/projects/${project.id}`}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    <BookOpenText className="h-4 w-4" />
-                    {t("projects.intro")}
-                  </Link>
-                </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
