@@ -15,7 +15,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     return (
       <button 
         onClick={togglePanel}
-        className="fixed right-6 top-6 w-10 h-10 bg-white text-black rounded-lg flex items-center justify-center shadow-md hover:bg-gray-50 transition-all duration-200 z-50"
+        className="absolute left-4 top-4 w-10 h-10 bg-white text-black rounded-lg flex items-center justify-center shadow-md hover:bg-gray-50 transition-all duration-200 z-50"
       >
         <Sparkles size={20} />
       </button>

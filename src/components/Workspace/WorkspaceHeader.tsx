@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 
 import { PenTool, Gamepad2, Code2, Home } from "lucide-react";
 import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
@@ -10,28 +10,41 @@ import { useI18n } from "@/i18n/client";
 
 type WorkspaceHeaderProps = {
   projectId?: string;
-  label?: string;
   viewMode?: 'resource' | 'preview' | 'code' | 'intro';
   onViewModeChange?: (mode: 'resource' | 'preview' | 'code' | 'intro') => void;
 };
 
 export default function WorkspaceHeader({
   projectId,
-  label,
   viewMode = 'resource',
   onViewModeChange,
 }: WorkspaceHeaderProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState<string>('');
   const { t } = useI18n();
+
+  // 获取项目信息
+  useEffect(() => {
+    const fetchProjectInfo = async () => {
+      if (!projectId) return;
+      try {
+        const response = await fetch(`/api/sparkx/projects/${projectId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProjectName(data.name || '');
+        }
+      } catch (error) {
+        console.error("Failed to fetch project info:", error);
+      }
+    };
+
+    fetchProjectInfo();
+  }, [projectId]);
 
   const handleGoHome = () => {
     router.push("/home");
-  };
-
-  const handleGoProjects = () => {
-    router.push("/projects");
   };
 
   const handleGoProjectIntro = () => {
@@ -71,7 +84,9 @@ export default function WorkspaceHeader({
           <Home size={14} />
           {t("workspace.home")}
         </button>
-        
+        <span className="text-sm font-medium text-slate-600 px-2 py-1">
+          {projectName || t("projects.untitled_project")}
+        </span>
       </div>
 
       {/* 中间：标签页 */}
@@ -138,13 +153,6 @@ export default function WorkspaceHeader({
       {/* 右侧：用户信息 */}
       <div className="absolute right-0">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleGoProjects}
-            className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            {t("auth.projects")}
-          </button>
           <LanguageSwitcher className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50" />
           <button
             type="button"
