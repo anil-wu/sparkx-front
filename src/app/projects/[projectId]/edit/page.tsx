@@ -36,13 +36,7 @@ export default async function ProjectEditorPage({
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm">
-        <div className="flex h-14 items-center justify-between px-4 sm:px-6">
-          <ProjectEditorHeader projectId={projectId} />
-          <AuthControls label={userLabel} compact />
-        </div>
-      </header>
-      <div className="h-[calc(100vh-56px)]">
+      <div className="h-screen">
         <Workspace initialLeftPanel={initialLeftPanel} heightClassName="h-full" />
       </div>
     </main>
