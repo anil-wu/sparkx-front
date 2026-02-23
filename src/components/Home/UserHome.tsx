@@ -3,35 +3,27 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BookOpenText,
   Clock,
   FilePlus2,
   Flame,
   Gamepad2,
-  Layers,
-  LogOut,
   MoreHorizontal,
   Play,
   Plus,
   Rocket,
   Sparkles,
   Star,
-  TrendingUp,
   Users,
 } from "lucide-react";
 
-import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
-import CreateProjectDialog from "@/components/Projects/CreateProjectDialog";
 import { useI18n } from "@/i18n/client";
 import { type Project } from "@/lib/projects";
 import {
-  createProject,
   deleteProjectById,
   listProjects,
-  uploadProjectCover,
-  updateProjectById,
 } from "@/lib/projects-api";
 import type { SparkxSession } from "@/lib/sparkx-session";
 
@@ -54,41 +46,37 @@ const pickFallbackCover = (index: number) => {
 export default function UserHome({ session }: UserHomeProps) {
   const { t } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const loaded = await listProjects();
+      setProjects(loaded);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : t("projects.empty"),
+      );
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t]);
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadProjects = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const loaded = await listProjects();
-        if (!cancelled) {
-          setProjects(loaded);
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error ? loadError.message : t("projects.empty"),
-          );
-          setProjects([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
     void loadProjects();
 
-    return () => {
-      cancelled = true;
+    const handleProjectCreated = () => {
+      void loadProjects();
     };
-  }, [t]);
+
+    window.addEventListener("project-created", handleProjectCreated);
+    return () => {
+      window.removeEventListener("project-created", handleProjectCreated);
+    };
+  }, [loadProjects]);
 
   const hydratedProjects = projects.map((project, index) => ({
     ...project,
@@ -96,44 +84,6 @@ export default function UserHome({ session }: UserHomeProps) {
   }));
 
   const recentProjects = hydratedProjects.slice(0, 6);
-
-  const handleCreateProject = async (input?: {
-    name?: string;
-    coverImage?: string;
-    coverFile?: File;
-  }) => {
-    setError(null);
-    try {
-      const project = await createProject({
-        name: input?.name || t("projects.untitled_project"),
-        description: t("projects.untitled_description"),
-      });
-
-      let coverImage = input?.coverImage || project.coverImage;
-      if (input?.coverFile) {
-        const coverFileId = await uploadProjectCover(project.id, input.coverFile);
-        await updateProjectById(project.id, {
-          name: project.name,
-          description: project.description,
-          coverFileId,
-        });
-        coverImage = `/api/files/${coverFileId}/content`;
-      }
-
-      setProjects((prev) => [
-        {
-          ...project,
-          coverImage,
-        },
-        ...prev,
-      ]);
-      setIsCreateDialogOpen(false);
-    } catch (createError) {
-      setError(
-        createError instanceof Error ? createError.message : t("projects.empty"),
-      );
-    }
-  };
 
   const handleDeleteProject = async (projectId: string) => {
     setError(null);
@@ -147,53 +97,13 @@ export default function UserHome({ session }: UserHomeProps) {
     }
   };
 
-  const router = useRouter();
-  const userDisplayName = session.username || session.email.split("@")[0];
-  const [isSigningOut, setIsSigningOut] = useState(false);
-
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
-    try {
-      await fetch("/api/sparkx/auth/logout", {
-        method: "POST",
-      });
-    } catch {
-      // Ignore error, always redirect to login
-    } finally {
-      window.location.href = "/login";
-    }
+  const handleOpenCreateDialog = () => {
+    window.dispatchEvent(new CustomEvent("open-create-project"));
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-        <div className="mb-10 flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              {t("user_home.welcome", { name: userDisplayName })}
-            </h1>
-            <p className="mt-2 text-base text-slate-600">
-              {t("user_home.subtitle")}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <LanguageSwitcher />
-            <button
-              type="button"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/90 px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
-              title={t("auth.sign_out")}
-            >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">
-                {isSigningOut ? t("auth.signing_out") : t("auth.sign_out")}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <>
+      <div className="mb-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:shadow-orange-500/20">
             <div className="absolute right-0 top-0 h-32 w-32 translate-x-8 -translate-y-8 rounded-full bg-white/10" />
             <div className="relative">
@@ -266,7 +176,7 @@ export default function UserHome({ session }: UserHomeProps) {
               </Link>
               <button
                 type="button"
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={handleOpenCreateDialog}
                 className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
               >
                 <Plus className="h-4 w-4" />
@@ -295,7 +205,7 @@ export default function UserHome({ session }: UserHomeProps) {
               </p>
               <button
                 type="button"
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={handleOpenCreateDialog}
                 className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
               >
                 <Plus className="h-4 w-4" />
@@ -313,7 +223,7 @@ export default function UserHome({ session }: UserHomeProps) {
               </p>
               <button
                 type="button"
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={handleOpenCreateDialog}
                 className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
               >
                 <Plus className="h-4 w-4" />
@@ -446,13 +356,6 @@ export default function UserHome({ session }: UserHomeProps) {
             </Link>
           </div>
         </div>
-      </div>
-
-      <CreateProjectDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        onCreate={handleCreateProject}
-      />
-    </div>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpenText, Plus, Rocket, Trash2 } from "lucide-react";
 
 import CreateProjectDialog from "@/components/Projects/CreateProjectDialog";
@@ -35,37 +35,34 @@ export default function ProjectsHub() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const loaded = await listProjects();
+      setProjects(loaded);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : t("projects.empty"),
+      );
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t]);
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadProjects = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const loaded = await listProjects();
-        if (!cancelled) {
-          setProjects(loaded);
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error ? loadError.message : t("projects.empty"),
-          );
-          setProjects([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
     void loadProjects();
 
-    return () => {
-      cancelled = true;
+    const handleCreated = () => {
+      void loadProjects();
     };
-  }, [t]);
+
+    window.addEventListener("project-created", handleCreated);
+    return () => {
+      window.removeEventListener("project-created", handleCreated);
+    };
+  }, [loadProjects]);
 
   const hydratedProjects = useMemo(
     () =>

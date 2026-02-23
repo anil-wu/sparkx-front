@@ -16,6 +16,13 @@
     "signing_out": "Signing out...",
     "sign_out_failed": "Sign-out request failed. Redirecting to login."
   },
+  "sidebar": {
+    "create_project": "Create Project",
+    "home": "Home",
+    "my_projects": "My Projects",
+    "user_info": "User Info",
+    "settings": "Settings"
+  },
   "login": {
     "tab_login": "Sign in",
     "tab_register": "Create account",

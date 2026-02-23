@@ -16,6 +16,13 @@
     "signing_out": "退出中...",
     "sign_out_failed": "退出请求失败，正在跳转登录页。"
   },
+  "sidebar": {
+    "create_project": "创建项目",
+    "home": "用户主页",
+    "my_projects": "我的项目",
+    "user_info": "用户信息",
+    "settings": "设置"
+  },
   "login": {
     "tab_login": "登录",
     "tab_register": "注册账号",
