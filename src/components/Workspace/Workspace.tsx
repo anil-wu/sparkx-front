@@ -6,18 +6,21 @@ import ProjectPanel from "./project/ProjectPanel";
 import GamePanel from "./game/GamePanel";
 import CanvasArea from "./CanvasArea";
 import ChatPanel from "./chat/ChatPanel";
-import ProjectEditorHeader from "../Projects/ProjectEditorHeader";
-import AuthControls from "../Auth/AuthControls";
+import WorkspaceHeader from "./WorkspaceHeader";
 import { FolderOpen, Gamepad2, Layers, PenTool } from "lucide-react";
 import { useI18n } from "@/i18n/client";
 
 type WorkspaceProps = {
+  projectId?: string;
+  userLabel?: string;
   initialLeftPanel?: 'hierarchy' | 'project';
   initialViewMode?: 'editor' | 'game';
   heightClassName?: string;
 };
 
 export default function Workspace({
+  projectId,
+  userLabel,
   initialLeftPanel = 'hierarchy',
   initialViewMode = 'editor',
   heightClassName = 'h-screen',
@@ -44,17 +47,29 @@ export default function Workspace({
 
       {/* 右边：分上下布局 */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* 上边：ProjectEditorHeader 和 AuthControls */}
+        {/* 上边：WorkspaceHeader */}
         <div className="flex-shrink-0 p-4 bg-white border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <ProjectEditorHeader />
-            <AuthControls />
-          </div>
+          <WorkspaceHeader projectId={projectId} label={userLabel} />
         </div>
 
-        {/* 下边：原来的编辑区/游戏区 */}
+        {/* 下边：编辑区/游戏区（左） + 面板区域（右） */}
         <div className="flex flex-1 overflow-hidden relative">
-          {/* 左侧面板区域 */}
+          {/* 左侧编辑/游戏区域 */}
+          <div className="flex flex-1 bg-gray-50 overflow-hidden relative">
+            {/* View Mode Switcher */}
+            <ViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
+
+            
+            {viewMode === 'editor' ? (
+              <CanvasArea 
+                isSidebarCollapsed={isSidebarCollapsed}
+              />
+            ) : (
+              <GamePanel />
+            )}
+          </div>
+          
+          {/* 右侧面板区域 */}
           <div className={`transition-all duration-300 flex-shrink-0 ${isSidebarCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'} flex flex-col gap-3`}>
             {!isSidebarCollapsed && (
               <LeftPanelSwitcher leftPanel={leftPanel} onChange={setLeftPanel} />
@@ -72,11 +87,7 @@ export default function Workspace({
               />
             )}
           </div>
-          
-          {/* 右侧编辑/游戏区域 */}
-          <div className="flex flex-1 bg-gray-50 overflow-hidden relative">
-            {/* View Mode Switcher */}
-            <ViewModeSwitcher viewMode={viewMode} onChange={setViewMode} />
+        </div>
 
             
             {viewMode === 'editor' ? (

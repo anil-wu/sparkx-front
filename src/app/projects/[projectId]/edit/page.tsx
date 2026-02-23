@@ -1,8 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import AuthControls from "@/components/Auth/AuthControls";
-import ProjectEditorHeader from "@/components/Projects/ProjectEditorHeader";
 import Workspace from "@/components/Workspace/Workspace";
 import { getRequestLocale } from "@/i18n/server";
 import { getMessages } from "@/i18n/messages";
@@ -37,7 +35,12 @@ export default async function ProjectEditorPage({
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="h-screen">
-        <Workspace initialLeftPanel={initialLeftPanel} heightClassName="h-full" />
+        <Workspace 
+          projectId={projectId}
+          userLabel={userLabel}
+          initialLeftPanel={initialLeftPanel} 
+          heightClassName="h-full" 
+        />
       </div>
     </main>
   );
