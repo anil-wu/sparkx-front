@@ -11,8 +11,8 @@ import { useI18n } from "@/i18n/client";
 type WorkspaceHeaderProps = {
   projectId?: string;
   label?: string;
-  viewMode?: 'resource' | 'preview' | 'code';
-  onViewModeChange?: (mode: 'resource' | 'preview' | 'code') => void;
+  viewMode?: 'resource' | 'preview' | 'code' | 'intro';
+  onViewModeChange?: (mode: 'resource' | 'preview' | 'code' | 'intro') => void;
 };
 
 export default function WorkspaceHeader({
@@ -28,6 +28,12 @@ export default function WorkspaceHeader({
 
   const handleGoProjects = () => {
     router.push("/projects");
+  };
+
+  const handleGoProjectIntro = () => {
+    if (projectId) {
+      router.push(`/projects/${projectId}`);
+    }
   };
 
   const handleSignOut = () => {
@@ -52,17 +58,20 @@ export default function WorkspaceHeader({
   return (
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center gap-2">
-        {projectId && (
-          <Link
-            href={`/projects/${projectId}`}
-            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+        {/* View Mode Switcher with tabs */}
+        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+          <button
+            type="button"
+            onClick={() => onViewModeChange?.('intro')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'intro'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
           >
-            {t("projects.intro")}
-          </Link>
-        )}
-        
-        {/* View Mode Switcher */}
-        <div className="ml-4 flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+            {t("workspace.project_info")}
+          </button>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
           <button
             type="button"
             onClick={() => onViewModeChange?.('resource')}

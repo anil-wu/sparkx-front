@@ -128,7 +128,8 @@
     "game": "Game",
     "resource": "Resource",
     "preview": "Preview",
-    "code": "Code"
+    "code": "Code",
+    "project_info": "Project Info"
   },
   "hierarchy": {
     "title": "Layers ({count})",
@@ -145,6 +146,17 @@
   "code": {
     "no_file_selected": "No file selected",
     "select_file_hint": "Select a file from the left panel"
+  },
+  "project_info": {
+    "loading": "Loading...",
+    "load_failed": "Failed to load project",
+    "description": "Description",
+    "no_description": "No description provided",
+    "created_at_label": "Created at",
+    "updated_at_label": "Updated at",
+    "view_details": "View details",
+    "edit_project": "Edit project",
+    "settings": "Settings"
   },
   "tools": {
     "shape": "Shapes",
