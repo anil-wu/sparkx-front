@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSparkxApiBaseUrl, fetchSparkxJson } from '@/lib/sparkx-api';
+import { fetchSparkxJson } from '@/lib/sparkx-api';
+import { getSparkxSessionFromHeaders } from '@/lib/sparkx-session';
 
 interface DeletedLayer {
   id: number;
@@ -27,12 +28,22 @@ export async function GET(request: NextRequest) {
         { error: 'canvasId is required' },
         { status: 400 }
       );
+ const session = getSparkxSessionFromHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const baseUrl = getSparkxApiBaseUrl();
     const result = await fetchSparkxJson<DeletedLayersResponse>(
-      `${baseUrl}/api/v1/layers/deleted?canvasId=${canvasId}&limit=${limit}`,
-      { method: 'GET' }
+      `/api/v1/layers/deleted?canvasId=${canvasId}&limit=${limit}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+      }
     );
 
     if (!result.ok) {

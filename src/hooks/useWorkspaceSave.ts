@@ -26,13 +26,14 @@ export function useWorkspaceSave(projectId: number) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const elementsToLayerRequest = useCallback((elements: BaseElement<any>[]): LayerSyncRequest[] => {
-    return elements.map((el) => {
+    return elements.map((el, index) => {
       const state = el.toState();
-      return {
+      const properties = getPropertiesFromState(state);
+      const request = {
         id: el.id,
         layerType: el.type,
         name: el.name,
-        zIndex: 0,
+        zIndex: index,
         x: el.x,
         y: el.y,
         width: el.width,
@@ -40,8 +41,10 @@ export function useWorkspaceSave(projectId: number) {
         rotation: el.rotation,
         visible: el.visible,
         locked: el.locked,
-        properties: getPropertiesFromState(state),
+        properties: properties,
       };
+      console.log(`Layer ${el.id} (${el.type}) properties:`, properties);
+      return request;
     });
   }, []);
 
@@ -124,6 +127,14 @@ export function useWorkspaceSave(projectId: number) {
       temporalState.pause();
 
       const layers = elementsToLayerRequest(state.elements);
+      
+      // Debug log
+      console.log('Syncing layers:', layers.map(l => ({
+        id: l.id,
+        name: l.name,
+        type: l.layerType,
+        zIndex: l.zIndex,
+      })));
       
       let result;
       try {

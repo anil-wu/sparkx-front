@@ -15,7 +15,6 @@ import { ZoomIn, ZoomOut, Trash2 } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { ContextMenu } from './editor/ContextMenu';
 import HistoryControls from './editor/HistoryControls';
-import { BaseElement } from './types/BaseElement';
 import { ElementState } from './types/ElementState';
 import { ToolType } from './types/ToolType';
 import { isDrawTool, isShapeTool, isTextLikeTool } from './types/toolGroups';
@@ -24,6 +23,8 @@ import SaveButton from './SaveButton';
 import ConflictDialog from './ConflictDialog';
 import RecycleBinPanel from './RecycleBinPanel';
 import { useI18n } from '@/i18n/client';
+import { workspaceAPI, Layer } from '@/lib/workspace-api';
+import { BaseElement, ShapeElement, TextElement, ImageElement, DrawElement, TextShapeElement } from './types/BaseElement';
 
 // Dynamically import EditorStage to avoid SSR issues with Konva
 const EditorStage = dynamic(() => import('./EditorStage'), { ssr: false });
@@ -62,6 +63,110 @@ const getInspectorPosition = (
   top: element.y * zoom + stagePos.y - 20,
 });
 
+// 将后端图层数据转换为前端元素
+function createElementFromLayer(layer: Layer): BaseElement<any> | null {
+  try {
+    const baseState = {
+      id: layer.id.toString(),
+      name: layer.name,
+      x: layer.positionX,
+      y: layer.positionY,
+      width: layer.width,
+      height: layer.height,
+      rotation: layer.rotation,
+      visible: layer.visible,
+      locked: layer.locked,
+      isEditing: false,
+    };
+
+    switch (layer.layerType) {
+      case 'rectangle':
+      case 'circle':
+      case 'triangle':
+      case 'star':
+        return new ShapeElement({
+          ...baseState,
+          type: layer.layerType as any,
+          color: layer.properties?.fill || '#3b82f6',
+          stroke: layer.properties?.stroke || '#1d4ed8',
+          strokeWidth: layer.properties?.strokeWidth || 2,
+          strokeStyle: layer.properties?.strokeStyle || 'solid',
+          cornerRadius: layer.properties?.cornerRadius || 0,
+          sides: layer.properties?.sides,
+          starInnerRadius: layer.properties?.starInnerRadius,
+        });
+      
+      case 'text':
+        return new TextElement({
+          ...baseState,
+          type: 'text',
+          text: layer.properties?.text || 'Text',
+          fontSize: layer.properties?.fontSize || 24,
+          textColor: layer.properties?.fill || '#000000',
+          fontFamily: layer.properties?.fontFamily || 'Arial',
+          fontStyle: layer.properties?.fontStyle || 'normal',
+          align: layer.properties?.align || 'left',
+          lineHeight: layer.properties?.lineHeight || 1.2,
+          letterSpacing: layer.properties?.letterSpacing || 0,
+          textDecoration: layer.properties?.textDecoration || 'none',
+          textTransform: layer.properties?.textTransform || 'none',
+        });
+      
+      case 'image':
+        return new ImageElement({
+          ...baseState,
+          type: 'image',
+          src: layer.properties?.src || '',
+        });
+      
+      case 'pen':
+      case 'pencil':
+        return new DrawElement({
+          ...baseState,
+          type: layer.layerType as any,
+          width: 0,
+          height: 0,
+          points: layer.properties?.points || [],
+          stroke: layer.properties?.stroke || '#000000',
+          strokeWidth: layer.properties?.strokeWidth || 2,
+          fill: layer.properties?.fill || 'transparent',
+        });
+      
+      case 'chat-bubble':
+      case 'arrow-left':
+      case 'arrow-right':
+      case 'rectangle-text':
+      case 'circle-text':
+        return new TextShapeElement({
+          ...baseState,
+          type: layer.layerType as any,
+          color: layer.properties?.fill || '#8b5cf6',
+          stroke: layer.properties?.stroke || '#6d28d9',
+          strokeWidth: layer.properties?.strokeWidth || 2,
+          strokeStyle: layer.properties?.strokeStyle || 'solid',
+          cornerRadius: layer.properties?.cornerRadius || 0,
+          text: layer.properties?.text || 'Label',
+          textColor: layer.properties?.textColor || '#ffffff',
+          fontSize: layer.properties?.fontSize || 14,
+          fontFamily: layer.properties?.fontFamily || 'Arial',
+          fontStyle: layer.properties?.fontStyle || 'normal',
+          align: layer.properties?.align || 'center',
+          lineHeight: layer.properties?.lineHeight || 1.2,
+          letterSpacing: layer.properties?.letterSpacing || 0,
+          textDecoration: layer.properties?.textDecoration || 'none',
+          textTransform: layer.properties?.textTransform || 'none',
+        });
+      
+      default:
+        console.warn('Unknown layer type:', layer.layerType);
+        return null;
+    }
+  } catch (error) {
+    console.error('Failed to create element from layer:', layer, error);
+    return null;
+  }
+}
+
 export default function CanvasArea({
   isSidebarCollapsed,
   projectId,
@@ -90,11 +195,64 @@ export default function CanvasArea({
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [canvasId, setCanvasId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const selectedElement = useMemo(
     () => (selectedId ? elements.find((element) => element.id === selectedId) ?? null : null),
     [elements, selectedId],
   );
+
+  // 加载画布数据
+  useEffect(() => {
+    const loadCanvas = async () => {
+      if (!finalProjectId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const projectId = parseInt(finalProjectId);
+        const canvasData = await workspaceAPI.getCanvas(projectId);
+        
+        if (canvasData && canvasData.canvas) {
+          setCanvasId(canvasData.canvas.id);
+          
+          // 将后端图层数据转换为前端元素
+          const loadedElements: BaseElement<any>[] = [];
+          
+          for (const layer of canvasData.layers) {
+            const element = createElementFromLayer(layer);
+            if (element) {
+              loadedElements.push(element);
+            }
+          }
+          
+          // 按 zIndex 排序
+          loadedElements.sort((a, b) => a.zIndex - b.zIndex);
+          
+          // 批量添加到 store（会替换之前的元素）
+          const { setElements } = useWorkspaceStore.getState();
+          setElements(loadedElements);
+          
+          console.log(`Canvas loaded for project ${projectId}:`, loadedElements.length, 'elements');
+        } else {
+          // 如果没有画布数据，清空 store
+          const { setElements } = useWorkspaceStore.getState();
+          setElements([]);
+          console.log('No canvas data found, cleared elements');
+        }
+      } catch (error) {
+        console.error('Failed to load canvas:', error);
+        // 出错时也清空 store
+        const { setElements } = useWorkspaceStore.getState();
+        setElements([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCanvas();
+  }, [finalProjectId]);
 
   const triggerDownload = useCallback((filename: string, href: string) => {
     const link = document.createElement('a');

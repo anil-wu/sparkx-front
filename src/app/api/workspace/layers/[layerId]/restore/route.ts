@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSparkxApiBaseUrl, fetchSparkxJson } from '@/lib/sparkx-api';
+import { fetchSparkxJson } from '@/lib/sparkx-api';
+import { getSparkxSessionFromHeaders } from '@/lib/sparkx-session';
 
 interface LayerRestoreResponse {
   restored: boolean;
@@ -12,12 +13,24 @@ export async function POST(
   { params }: { params: { layerId: string } }
 ) {
   try {
+    const session = getSparkxSessionFromHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const layerId = params.layerId;
 
-    const baseUrl = getSparkxApiBaseUrl();
     const result = await fetchSparkxJson<LayerRestoreResponse>(
-      `${baseUrl}/api/v1/layers/${layerId}/restore`,
-      { method: 'POST' }
+      `/api/v1/layers/${layerId}/restore`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+      }
     );
 
     if (!result.ok) {

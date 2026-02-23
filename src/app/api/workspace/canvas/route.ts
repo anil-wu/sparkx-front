@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSparkxApiBaseUrl, fetchSparkxJson } from '@/lib/sparkx-api';
+import { fetchSparkxJson } from '@/lib/sparkx-api';
+import { getSparkxSessionFromHeaders } from '@/lib/sparkx-session';
 
 interface CanvasData {
   id: number;
@@ -53,11 +54,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const baseUrl = getSparkxApiBaseUrl();
+    const session = getSparkxSessionFromHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const result = await fetchSparkxJson<CanvasResponse>(
-      `${baseUrl}/api/v1/projects/${projectId}/canvas`,
+      `/api/v1/projects/${projectId}/canvas`,
       {
         method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
       }
     );
 
@@ -91,11 +102,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const session = getSparkxSessionFromHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const baseUrl = getSparkxApiBaseUrl();
     const result = await fetchSparkxJson<{ id: number }>(
-      `${baseUrl}/api/v1/projects/${projectId}/canvas`,
-      { method: 'POST', body: JSON.stringify(body) }
+      `/api/v1/projects/${projectId}/canvas`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify(body),
+      }
     );
 
     if (!result.ok) {

@@ -96,5 +96,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(mapSparkxProject(result.data));
+  const project = mapSparkxProject(result.data);
+  const projectId = result.data.id;
+
+  await fetchSparkxJson<{ id: number }>(
+    `/api/v1/projects/${projectId}/canvas`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+      body: JSON.stringify({
+        name: "Main Canvas",
+        backgroundColor: "#ffffff",
+        metadata: {
+          gridSize: 10,
+          snapEnabled: true,
+        },
+      }),
+    },
+  );
+
+  return NextResponse.json(project);
 }

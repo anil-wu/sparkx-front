@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSparkxApiBaseUrl, fetchSparkxJson } from '@/lib/sparkx-api';
+import { fetchSparkxJson } from '@/lib/sparkx-api';
+import { getSparkxSessionFromHeaders } from '@/lib/sparkx-session';
 
 interface LayerSyncRequest {
   id: string;
@@ -36,6 +37,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const session = getSparkxSessionFromHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { layers }: { layers: LayerSyncRequest[] } = body;
 
@@ -46,10 +55,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = getSparkxApiBaseUrl();
     const result = await fetchSparkxJson<LayerSyncResponse>(
-      `${baseUrl}/api/v1/projects/${projectId}/layers/sync`,
-      { method: 'POST', body: JSON.stringify({ layers }) }
+      `/api/v1/projects/${projectId}/layers/sync`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify({ layers }),
+      }
     );
 
     if (!result.ok) {

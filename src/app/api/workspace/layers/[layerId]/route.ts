@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSparkxApiBaseUrl, fetchSparkxJson } from '@/lib/sparkx-api';
+import { fetchSparkxJson } from '@/lib/sparkx-api';
+import { getSparkxSessionFromHeaders } from '@/lib/sparkx-session';
 
 interface LayerUpdateRequest {
   name?: string;
@@ -30,14 +31,27 @@ export async function PUT(
   { params }: { params: { layerId: string } }
 ) {
   try {
+    const session = getSparkxSessionFromHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const layerId = params.layerId;
     const body = await request.json();
     const updates: LayerUpdateRequest = body;
 
-    const baseUrl = getSparkxApiBaseUrl();
     const result = await fetchSparkxJson<any>(
-      `${baseUrl}/api/v1/layers/${layerId}`,
-      { method: 'PUT', body: JSON.stringify(updates) }
+      `/api/v1/layers/${layerId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify(updates),
+      }
     );
 
     if (!result.ok) {
@@ -63,12 +77,24 @@ export async function DELETE(
   { params }: { params: { layerId: string } }
 ) {
   try {
+    const session = getSparkxSessionFromHeaders(request.headers);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const layerId = params.layerId;
 
-    const baseUrl = getSparkxApiBaseUrl();
     const result = await fetchSparkxJson<LayerDeleteResponse>(
-      `${baseUrl}/api/v1/layers/${layerId}`,
-      { method: 'DELETE' }
+      `/api/v1/layers/${layerId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+      }
     );
 
     if (!result.ok) {
