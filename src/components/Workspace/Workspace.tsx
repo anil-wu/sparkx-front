@@ -6,6 +6,7 @@ import ProjectPanel from "./project/ProjectPanel";
 import GamePanel from "./game/GamePanel";
 import CanvasArea from "./CanvasArea";
 import ChatPanel from "./chat/ChatPanel";
+import CodeArea from "./code/CodeArea";
 import WorkspaceHeader from "./WorkspaceHeader";
 import { FolderOpen, Layers } from "lucide-react";
 import { useI18n } from "@/i18n/client";
@@ -14,7 +15,7 @@ type WorkspaceProps = {
   projectId?: string;
   userLabel?: string;
   initialLeftPanel?: 'hierarchy' | 'project';
-  initialViewMode?: 'resource' | 'preview';
+  initialViewMode?: 'resource' | 'preview' | 'code';
   heightClassName?: string;
 };
 
@@ -27,7 +28,7 @@ export default function Workspace({
 }: WorkspaceProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
-  const [viewMode, setViewMode] = useState<'resource' | 'preview'>(initialViewMode);
+  const [viewMode, setViewMode] = useState<'resource' | 'preview' | 'code'>(initialViewMode);
   const [leftPanel, setLeftPanel] = useState<'hierarchy' | 'project'>(initialLeftPanel);
 
   const toggleSidebar = () => {
@@ -87,6 +88,12 @@ export default function Workspace({
                 )}
               </div>
             </>
+          ) : viewMode === 'code' ? (
+            /* Code 模式：显示 CodeArea 组件 */
+            <CodeArea 
+              isSidebarCollapsed={isSidebarCollapsed}
+              toggleSidebar={toggleSidebar}
+            />
           ) : (
             /* 预览模式：只显示 GamePanel */
             <GamePanel />

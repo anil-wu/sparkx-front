@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { PenTool, Gamepad2 } from "lucide-react";
+import { PenTool, Gamepad2, Code2 } from "lucide-react";
 import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
 import { useI18n } from "@/i18n/client";
 
 type WorkspaceHeaderProps = {
   projectId?: string;
   label?: string;
-  viewMode?: 'resource' | 'preview';
-  onViewModeChange?: (mode: 'resource' | 'preview') => void;
+  viewMode?: 'resource' | 'preview' | 'code';
+  onViewModeChange?: (mode: 'resource' | 'preview' | 'code') => void;
 };
 
 export default function WorkspaceHeader({
@@ -74,6 +74,18 @@ export default function WorkspaceHeader({
           >
             <PenTool size={14} />
             {t("workspace.resource")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewModeChange?.('code')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'code'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Code2 size={14} />
+            {t("workspace.code")}
           </button>
           <button
             type="button"

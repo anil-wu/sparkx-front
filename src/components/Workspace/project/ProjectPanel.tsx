@@ -19,6 +19,7 @@ import {
 interface ProjectPanelProps {
   isCollapsed: boolean;
   toggleSidebar: () => void;
+  onFileSelect?: (fileId: string) => void;
 }
 
 interface FileNode {
@@ -117,12 +118,20 @@ export default function ProjectPanel({ isCollapsed, toggleSidebar }: ProjectPane
     const isFolder = node.type === 'folder';
     const paddingLeft = level * 12 + 12;
 
+    const handleClick = () => {
+      if (isFolder) {
+        toggleFolder(node.id);
+      } else {
+        onFileSelect?.(node.id);
+      }
+    };
+
     return (
       <div className="select-none">
         <div 
           className={`flex items-center gap-2 py-1.5 px-2 hover:bg-gray-100 rounded-lg cursor-pointer text-sm ${searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase()) ? 'opacity-50' : ''}`}
           style={{ paddingLeft: `${paddingLeft}px` }}
-          onClick={() => isFolder && toggleFolder(node.id)}
+          onClick={handleClick}
         >
           {isFolder ? (
             <div className="text-gray-400">

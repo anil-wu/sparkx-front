@@ -127,7 +127,8 @@
     "editor": "Editor",
     "game": "Game",
     "resource": "Resource",
-    "preview": "Preview"
+    "preview": "Preview",
+    "code": "Code"
   },
   "hierarchy": {
     "title": "Layers ({count})",
@@ -140,6 +141,10 @@
   "project": {
     "assets": "Project assets",
     "search_placeholder": "Search..."
+  },
+  "code": {
+    "no_file_selected": "No file selected",
+    "select_file_hint": "Select a file from the left panel"
   },
   "tools": {
     "shape": "Shapes",
