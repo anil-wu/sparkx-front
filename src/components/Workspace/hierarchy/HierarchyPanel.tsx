@@ -23,9 +23,10 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
     return (
       <button 
         onClick={toggleSidebar}
-        className="fixed left-6 bottom-6 w-10 h-10 flex items-center justify-center z-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+        className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center z-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all shadow-md"
+        title="Show Layers"
       >
-        <Layers size={24} />
+        <Layers size={20} />
       </button>
     );
   }

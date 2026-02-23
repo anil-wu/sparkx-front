@@ -9,6 +9,7 @@ import ShapeInspectorBar from './editor/tools/shape/InspectorBar';
 import DrawInspectorBar from './editor/tools/shared/DrawInspectorBar';
 import DrawSelectionToolbar from './editor/tools/shared/DrawSelectionToolbar';
 import TextInspectorBar from './editor/tools/text/InspectorBar';
+import HierarchyPanel from './hierarchy/HierarchyPanel';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { ContextMenu } from './editor/ContextMenu';
@@ -65,6 +66,7 @@ export default function CanvasArea({
   const [drawingStyle, setDrawingStyle] = useState<DrawingStyle>({ stroke: '#000000', strokeWidth: 2 });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [stageInstance, setStageInstance] = useState<Konva.Stage | null>(null);
+  const [isHierarchyCollapsed, setIsHierarchyCollapsed] = useState(false);
 
   const selectedElement = useMemo(
     () => (selectedId ? elements.find((element) => element.id === selectedId) ?? null : null),
@@ -267,63 +269,74 @@ export default function CanvasArea({
   };
 
   return (
-    <div
-      className="flex-1 relative bg-[#fafafa] overflow-hidden"
-      ref={containerRef}
-    >
-      <ToolsPanel
-        isSidebarCollapsed={isSidebarCollapsed}
-        activeTool={activeTool}
-        onToolChange={setActiveTool}
-      />
-
-      {/* Canvas Stage Layer */}
-      {dimensions.width > 0 && dimensions.height > 0 && (
-        <EditorStage
-          onStageReady={setStageInstance}
+    <div className="flex flex-1 overflow-hidden relative">
+      {/* 左侧画布区域 */}
+      <div
+        className="flex-1 relative bg-[#fafafa] overflow-hidden"
+        ref={containerRef}
+      >
+        <ToolsPanel
+          isSidebarCollapsed={isSidebarCollapsed}
           activeTool={activeTool}
-          onToolUsed={() => {}}
           onToolChange={setActiveTool}
-          zoom={zoom}
-          stagePos={stagePos}
-          onStagePosChange={setStagePos}
-          width={dimensions.width}
-          height={dimensions.height}
-          drawingStyle={drawingStyle}
-          onContextMenu={(e, elementId) => {
-            e.evt.preventDefault();
-            setContextMenu({
-              x: e.evt.clientX,
-              y: e.evt.clientY,
-              elementId: elementId || null,
-            });
-          }}
         />
-      )}
 
-      {/* Context Menu */}
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          elementId={contextMenu.elementId}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+        {/* Canvas Stage Layer */}
+        {dimensions.width > 0 && dimensions.height > 0 && (
+          <EditorStage
+            onStageReady={setStageInstance}
+            activeTool={activeTool}
+            onToolUsed={() => {}}
+            onToolChange={setActiveTool}
+            zoom={zoom}
+            stagePos={stagePos}
+            onStagePosChange={setStagePos}
+            width={dimensions.width}
+            height={dimensions.height}
+            drawingStyle={drawingStyle}
+            onContextMenu={(e, elementId) => {
+              e.evt.preventDefault();
+              setContextMenu({
+                x: e.evt.clientX,
+                y: e.evt.clientY,
+                elementId: elementId || null,
+              });
+            }}
+          />
+        )}
 
-      {/* Persistent InspectorBar when in pencil/pen mode */}
-      {renderDrawInspector()}
+        {/* Context Menu */}
+        {contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            elementId={contextMenu.elementId}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
 
-      {renderSelectedInspector()}
+        {/* Persistent InspectorBar when in pencil/pen mode */}
+        {renderDrawInspector()}
 
-      <div className="absolute top-6 right-20 bg-white rounded-lg px-2 py-1.5 shadow-md flex items-center gap-3 text-sm text-gray-700 z-50">
-        <button className="p-1 hover:text-black transition-colors" onClick={handleZoomOut}><ZoomOut size={16} /></button>
-        <span className="min-w-[40px] text-center font-medium">{Math.round(zoom * 100)}%</span>
-        <button className="p-1 hover:text-black transition-colors" onClick={handleZoomIn}><ZoomIn size={16} /></button>
+        {renderSelectedInspector()}
+
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white rounded-lg px-2 py-1.5 shadow-md flex items-center gap-3 text-sm text-gray-700 z-50">
+          <button className="p-1 hover:text-black transition-colors" onClick={handleZoomOut}><ZoomOut size={16} /></button>
+          <span className="min-w-[40px] text-center font-medium">{Math.round(zoom * 100)}%</span>
+          <button className="p-1 hover:text-black transition-colors" onClick={handleZoomIn}><ZoomIn size={16} /></button>
+        </div>
+
+        {/* History Controls */}
+        <HistoryControls />
       </div>
 
-      {/* History Controls */}
-      <HistoryControls />
+      {/* 右侧 HierarchyPanel - 位于 EditorStage 上面 */}
+      <div className="absolute top-0 right-4 h-full w-64 z-40">
+        <HierarchyPanel
+          isCollapsed={isHierarchyCollapsed}
+          toggleSidebar={() => setIsHierarchyCollapsed(!isHierarchyCollapsed)}
+        />
+      </div>
     </div>
   );
 }

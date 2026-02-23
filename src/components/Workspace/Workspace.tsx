@@ -61,33 +61,10 @@ export default function Workspace({
         {/* 下边：内容区域 */}
         <div className="flex flex-1 overflow-hidden relative">
           {viewMode === 'resource' ? (
-            <>
-              {/* 左侧资源编辑区域 */}
-              <div className="flex flex-1 bg-gray-50 overflow-hidden relative">
-                <CanvasArea 
-                  isSidebarCollapsed={isSidebarCollapsed}
-                />
-              </div>
-              
-              {/* 右侧面板区域 */}
-              <div className={`transition-all duration-300 flex-shrink-0 ${isSidebarCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'} flex flex-col gap-3`}>
-                {!isSidebarCollapsed && (
-                  <LeftPanelSwitcher leftPanel={leftPanel} onChange={setLeftPanel} />
-                )}
-
-                {leftPanel === 'hierarchy' ? (
-                  <HierarchyPanel 
-                    isCollapsed={isSidebarCollapsed} 
-                    toggleSidebar={toggleSidebar}
-                  />
-                ) : (
-                  <ProjectPanel 
-                    isCollapsed={isSidebarCollapsed}
-                    toggleSidebar={toggleSidebar}
-                  />
-                )}
-              </div>
-            </>
+            /* 资源模式：CanvasArea（已包含 HierarchyPanel） */
+            <CanvasArea 
+              isSidebarCollapsed={isSidebarCollapsed}
+            />
           ) : viewMode === 'code' ? (
             /* Code 模式：显示 CodeArea 组件 */
             <CodeArea 
