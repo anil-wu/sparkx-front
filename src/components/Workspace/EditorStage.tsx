@@ -16,6 +16,7 @@ import { ToolFactory } from './editor/tools/ToolFactory';
 import { IMouseAction, ToolContext } from './editor/interfaces/IMouseAction';
 import { getElementComponent } from './editor/tools/ElementRegistry';
 import { getSnapShift } from './editor/utils/snapUtils';
+import { Rect } from 'react-konva';
 
 
 interface EditorStageProps {
@@ -45,7 +46,7 @@ const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
   onContextMenu,
   onStageReady,
 }, ref) => {
-  const { elements, selectedId, guidelines, setGuidelines } = useWorkspaceStore();
+  const { elements, selectedId, selectedIds, isSelecting, selectionBox, isDraggingSelection, shouldSuppressContextMenu, selectionBoundingBox, guidelines, setGuidelines } = useWorkspaceStore();
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
 
@@ -110,7 +111,7 @@ const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
 
   // Handle selection transformer
   useEffect(() => {
-    if (selectedId && transformerRef.current && stageRef.current && !isDrawing) {
+    if (selectedId && selectedIds.length < 2 && transformerRef.current && stageRef.current && !isDrawing) {
       const selectedElement = elements.find(el => el.id === selectedId);
       if (selectedElement?.locked) {
         transformerRef.current.nodes([]);
@@ -160,6 +161,11 @@ const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
         // Prevent default browser menu
         e.evt.preventDefault();
         
+        // 如果正在拖拽选择区域，或者刚刚完成了一次拖拽（针对右键拖拽后的释放），不显示右键菜单
+        if (isDraggingSelection || shouldSuppressContextMenu) {
+          return;
+        }
+        
         // Find if we clicked on an element
         // We look up the tree to find a node with an ID that matches an element
         let target: Konva.Node = e.target;
@@ -189,7 +195,8 @@ const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
           const ElementComponent = getElementComponent(el.type);
           if (!ElementComponent) return null;
 
-          const isSelected = selectedId === el.id || (el.type === 'pen' && el.id === previewElement?.id);
+          // 支持多选高亮
+          const isSelected = selectedId === el.id || selectedIds.includes(el.id) || (el.type === 'pen' && el.id === previewElement?.id);
           
           return (
             <ElementComponent
@@ -203,6 +210,37 @@ const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
             />
           );
         })}
+        
+        {/* 渲染选择框 */}
+        {isSelecting && selectionBox && (
+          <Rect
+            x={selectionBox.x}
+            y={selectionBox.y}
+            width={selectionBox.width}
+            height={selectionBox.height}
+            fill="rgba(59, 130, 246, 0.1)"
+            stroke="#3b82f6"
+            strokeWidth={1 / zoom}
+            dash={[4, 4]}
+            listening={false}
+          />
+        )}
+        
+        {/* 渲染多选包围盒 - 仅在选中超过一个元素时显示 */}
+        {!isDraggingSelection && selectionBoundingBox && (selectedIds.length + (selectedId ? 1 : 0)) > 1 && (
+          <Rect
+            x={selectionBoundingBox.x}
+            y={selectionBoundingBox.y}
+            width={selectionBoundingBox.width}
+            height={selectionBoundingBox.height}
+            fill="transparent"
+            stroke="#3b82f6"
+            strokeWidth={2 / zoom}
+            dash={[6, 4]}
+            listening={false}
+          />
+        )}
+        
         <Transformer
 
           ref={transformerRef}

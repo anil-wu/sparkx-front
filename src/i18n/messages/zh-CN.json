@@ -141,7 +141,17 @@
     "preview": "预览",
     "code": "代码",
     "project_info": "项目信息",
-    "home": "首页"
+    "home": "首页",
+    "merge_selected": "合并选中的图层",
+    "merge": "合并",
+    "download_preview": "下载预览",
+    "download": "下载",
+    "merge_success": "合并成功",
+    "merge_failed": "合并失败",
+    "uploading_image": "上传图片中...",
+    "upload_failed": "上传失败",
+    "select_at_least_two": "请至少选择两个元素",
+    "recycle_bin": "回收站"
   },
   "hierarchy": {
     "title": "图层 ({count})",

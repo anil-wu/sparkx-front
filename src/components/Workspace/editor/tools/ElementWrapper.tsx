@@ -32,7 +32,7 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
   ...rest
 }) => {
   const groupRef = useRef<Konva.Group>(null);
-  const { activeTool, selectElement, updateElement, setGuidelines } = useWorkspaceStore();
+  const { activeTool, selectElement, updateElement, setGuidelines, selectedIds } = useWorkspaceStore();
 
   const handleSelect = (e: Konva.KonvaEventObject<Event>) => {
     if (activeTool === 'select' && !locked) {
@@ -94,7 +94,7 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
       onTap={handleSelect}
       onDblClick={handleDblClick}
       onDblTap={handleDblClick}
-      draggable={draggable && activeTool === 'select' && !isEditing && !locked}
+      draggable={draggable && activeTool === 'select' && !isEditing && !locked && selectedIds.length < 2 && isSelected}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={(e) => {

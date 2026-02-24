@@ -48,6 +48,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { layers }: { layers: LayerSyncRequest[] } = body;
 
+    console.log('layers------------->', layers);
+
     if (!layers || !Array.isArray(layers)) {
       return NextResponse.json(
         { error: 'layers array is required' },

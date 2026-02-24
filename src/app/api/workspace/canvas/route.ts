@@ -78,7 +78,11 @@ export async function GET(request: NextRequest) {
         { status: result.status === 404 ? 404 : 500 }
       );
     }
-
+    console.log('canvas------------->', result.data);
+    for (const layer of result.data.layers) {
+      // layer.properties = JSON.parse(layer.properties);
+      console.log('layer.properties------------->', layer.layerType, layer.name, layer.properties);
+    }
     return NextResponse.json(result.data);
   } catch (error) {
     console.error('Error fetching canvas:', error);

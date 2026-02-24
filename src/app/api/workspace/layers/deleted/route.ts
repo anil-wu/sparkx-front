@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
         { error: 'canvasId is required' },
         { status: 400 }
       );
- const session = getSparkxSessionFromHeaders(request.headers);
+    }
+
+    const session = getSparkxSessionFromHeaders(request.headers);
     if (!session) {
       return NextResponse.json(
         { error: 'Unauthorized' },

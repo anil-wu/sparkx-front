@@ -42,14 +42,6 @@ const normalizeBaseURL = (raw: string): string => {
   return withProtocol.replace(/\/$/, "");
 };
 
-const SPARKX_API_BASE_URL = (() => {
-  const raw = process.env.SPARKX_API_BASE_URL;
-  if (!raw || !raw.trim()) {
-    throw new Error("Missing required environment variable: SPARKX_API_BASE_URL");
-  }
-  return normalizeBaseURL(raw);
-})();
-
 const parseJsonSafely = async (response: Response): Promise<unknown> => {
   const text = await response.text();
   if (!text) return null;
@@ -82,9 +74,10 @@ export const fetchSparkxJson = async <T>(
   path: string,
   init?: RequestInit,
 ): Promise<SparkxApiResult<T>> => {
+  const baseUrl = getSparkxApiBaseUrl();
   try {
-    console.log(`${SPARKX_API_BASE_URL}${path}`);
-    const response = await fetch(`${SPARKX_API_BASE_URL}${path}`, {
+    console.log(`${baseUrl}${path}`);
+    const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       cache: "no-store",
       headers: {
@@ -95,7 +88,7 @@ export const fetchSparkxJson = async <T>(
     const payload = await parseJsonSafely(response);
 
     if (!response.ok) {
-      console.error(`${SPARKX_API_BASE_URL}${path}`, response.status, payload);
+      console.error(`${baseUrl}${path}`, response.status, payload);
       return {
         ok: false,
         status: response.status,
@@ -103,20 +96,29 @@ export const fetchSparkxJson = async <T>(
       };
     }
 
-    console.log(`${SPARKX_API_BASE_URL}${path}`, response.status, payload);
+    console.log(`${baseUrl}${path}`, response.status, payload);
     return {
       ok: true,
       status: response.status,
       data: payload as T,
     };
   } catch (error) {
-    console.error(`${SPARKX_API_BASE_URL}${path}`, error);
+    console.error(`${baseUrl}${path}`, error);
     return {
       ok: false,
       status: 502,
       message: error instanceof Error ? error.message : "Upstream request failed",
     };
   }
+};
+
+export const getSparkxApiBaseUrl = (): string => {
+  const raw = process.env.SPARKX_API_BASE_URL;
+  if (!raw || !raw.trim()) {
+    // 返回一个默认值，避免启动时报错
+    return "http://localhost:8890";
+  }
+  return normalizeBaseURL(raw);
 };
 
 const toIsoString = (raw: string): string => {
@@ -139,7 +141,5 @@ export const mapSparkxProject = (project: SparkxProject): Project => ({
       ? `/api/files/${project.coverFileId}/content`
       : undefined,
 });
-
-export const getSparkxApiBaseUrl = (): string => SPARKX_API_BASE_URL;
 
 export type { SparkxProject, SparkxPagedResponse };

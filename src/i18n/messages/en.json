@@ -141,7 +141,17 @@
     "preview": "Preview",
     "code": "Code",
     "project_info": "Project Info",
-    "home": "Home"
+    "home": "Home",
+    "merge_selected": "Merge selected layers",
+    "merge": "Merge",
+    "download_preview": "Download preview",
+    "download": "Download",
+    "merge_success": "Merged successfully",
+    "merge_failed": "Merge failed",
+    "uploading_image": "Uploading image...",
+    "upload_failed": "Upload failed",
+    "select_at_least_two": "Please select at least two elements",
+    "recycle_bin": "Recycle bin"
   },
   "hierarchy": {
     "title": "Layers ({count})",

@@ -25,6 +25,8 @@ import RecycleBinPanel from './RecycleBinPanel';
 import { useI18n } from '@/i18n/client';
 import { workspaceAPI, Layer } from '@/lib/workspace-api';
 import { BaseElement, ShapeElement, TextElement, ImageElement, DrawElement, TextShapeElement } from './types/BaseElement';
+import { MergeToolbar } from './editor/tools/shared/MergeToolbar';
+import { calculateBoundingBox, mergeElements } from './editor/utils/mergeUtils';
 
 // Dynamically import EditorStage to avoid SSR issues with Konva
 const EditorStage = dynamic(() => import('./EditorStage'), { ssr: false });
@@ -179,7 +181,7 @@ export default function CanvasArea({
   const finalProjectId = projectId || searchParams?.get('projectId') || '';
   const { t } = useI18n();
   
-  const { elements, selectedId, updateElement, activeTool, setActiveTool, removeElement } = useWorkspaceStore();
+  const { elements, selectedId, selectedIds, updateElement, activeTool, setActiveTool, removeElement, mergeSelectedElements } = useWorkspaceStore();
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState<CanvasDimensions>({ width: 0, height: 0 });
@@ -188,6 +190,10 @@ export default function CanvasArea({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [stageInstance, setStageInstance] = useState<Konva.Stage | null>(null);
   const [isHierarchyCollapsed, setIsHierarchyCollapsed] = useState(false);
+  
+  // 合并工具栏状态
+  const [showMergeToolbar, setShowMergeToolbar] = useState(false);
+  const [mergeToolbarPos, setMergeToolbarPos] = useState({ x: 0, y: 0 });
   
   const {
     saveStatus,
@@ -201,10 +207,92 @@ export default function CanvasArea({
   const [canvasId, setCanvasId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const selectedElement = useMemo(
-    () => (selectedId ? elements.find((element) => element.id === selectedId) ?? null : null),
-    [elements, selectedId],
-  );
+  const selectedElement = useMemo(() => {
+    if (selectedId) {
+      return elements.find((element) => element.id === selectedId) ?? null;
+    }
+    if (selectedIds.length === 1) {
+      return elements.find((element) => element.id === selectedIds[0]) ?? null;
+    }
+    return null;
+  }, [elements, selectedId, selectedIds]);
+
+  // 监听选择变化，显示/隐藏合并工具栏
+  useEffect(() => {
+    const count = selectedIds.length > 0 ? selectedIds.length : (selectedId ? 1 : 0);
+    
+    // 更新选择包围盒
+    const { updateSelectionBoundingBox } = useWorkspaceStore.getState();
+    updateSelectionBoundingBox();
+    
+    if (count >= 2 && stageInstance) {
+      // 计算所有选中元素的中心位置
+      const selectedElements = elements.filter(el => 
+        selectedIds.includes(el.id) || el.id === selectedId
+      );
+      
+      if (selectedElements.length >= 2) {
+        const boundingBox = calculateBoundingBox(selectedElements);
+        const centerX = boundingBox.x + boundingBox.width / 2;
+        const topY = boundingBox.y;
+        
+        // 转换为屏幕坐标
+        const stagePos = stageInstance.position();
+        const scale = stageInstance.scaleX();
+        
+        setMergeToolbarPos({
+          x: centerX * scale + stagePos.x,
+          y: topY * scale + stagePos.y,
+        });
+        setShowMergeToolbar(true);
+      }
+    } else {
+      setShowMergeToolbar(false);
+    }
+  }, [selectedIds, selectedId, elements, stageInstance]);
+  
+  // 处理合并
+  const handleMerge = async () => {
+    if (!finalProjectId) {
+      console.error('Project ID is required');
+      return;
+    }
+    
+    try {
+      await mergeSelectedElements(parseInt(finalProjectId));
+      setShowMergeToolbar(false);
+    } catch (error) {
+      console.error('合并失败:', error);
+      alert(t('workspace.merge_failed'));
+    }
+  };
+  
+  // 处理下载选中的多个元素
+  const handleDownloadSelected = async () => {
+    const allSelectedIds = [...selectedIds];
+    if (selectedId && !allSelectedIds.includes(selectedId)) {
+      allSelectedIds.push(selectedId);
+    }
+    
+    if (allSelectedIds.length < 2) {
+      return;
+    }
+    
+    try {
+      const result = await mergeElements(elements, allSelectedIds);
+      if (result && result.thumbnailSrc) {
+        const link = document.createElement('a');
+        link.download = `merged_${Date.now()}.png`;
+        link.href = result.thumbnailSrc;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error('下载合并预览失败:', error);
+      alert(t('workspace.download_failed'));
+    }
+  };
 
   // 加载画布数据
   useEffect(() => {
@@ -385,7 +473,17 @@ export default function CanvasArea({
   };
 
   const renderSelectedInspector = () => {
-    if (!selectedElement || !selectedId) {
+    // 收集所有选中的 ID，如果选中了多个对象，则不显示元素特有的工具栏（由 MergeToolbar 替代）
+    const allSelectedIds = [...selectedIds];
+    if (selectedId && !allSelectedIds.includes(selectedId)) {
+      allSelectedIds.push(selectedId);
+    }
+
+    if (allSelectedIds.length > 1) {
+      return null;
+    }
+
+    if (!selectedElement) {
       return null;
     }
 
@@ -460,6 +558,18 @@ export default function CanvasArea({
         className="flex-1 relative bg-[#fafafa] overflow-hidden"
         ref={containerRef}
       >
+        {/* 合并工具栏 */}
+        {showMergeToolbar && (
+          <MergeToolbar
+            x={mergeToolbarPos.x}
+            y={mergeToolbarPos.y}
+            onMerge={handleMerge}
+            onDownload={handleDownloadSelected}
+            selectedCount={selectedIds.length || 1}
+            disabled={false}
+          />
+        )}
+        
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
           <SaveButton
             saveStatus={saveStatus}
