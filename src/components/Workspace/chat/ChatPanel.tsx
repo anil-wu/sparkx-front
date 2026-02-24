@@ -50,6 +50,139 @@ interface MessageInfo {
   };
 }
 
+// ReasoningPart 组件 - 推理片段
+interface ReasoningPartComponentProps {
+  part: ReasoningPart;
+  idx: number;
+}
+
+const ReasoningPartComponent: React.FC<ReasoningPartComponentProps> = ({ part, idx }) => {
+  // 当 time.end 存在时表示推理结束
+  const isCompleted = !!part.time?.end;
+  const [isCollapsed, setIsCollapsed] = useState(isCompleted);
+  
+  // 当 time.end 出现时自动折叠
+  useEffect(() => {
+    if (isCompleted) {
+      setIsCollapsed(true);
+    }
+  }, [isCompleted]);
+  
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+  
+  return (
+    <div key={idx} className="p-3 bg-purple-50 rounded-lg border border-purple-100 text-xs text-purple-800">
+      <div 
+        className="flex items-center gap-2 mb-2 font-medium text-purple-700 cursor-pointer select-none hover:bg-purple-100/50 rounded px-2 py-1 transition-colors"
+        onClick={toggleCollapse}
+      >
+        <Sparkles size={12} />
+        <span>{isCompleted ? '思考' : '推理中...'}</span>
+        <ChevronLeft 
+          size={12} 
+          className={`ml-auto transition-transform ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
+        />
+      </div>
+      {!isCollapsed && (
+        <div className="whitespace-pre-wrap opacity-80">{part.text}</div>
+      )}
+    </div>
+  );
+};
+
+// ToolPart 组件 - 工具调用片段
+interface ToolPartComponentProps {
+  part: ToolPart;
+  idx: number;
+}
+
+const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
+  const state = part.state;
+  const toolName = part.tool || 'Unknown';
+  const isCompleted = state?.status === 'completed' || state?.status === 'failed';
+  const [isCollapsed, setIsCollapsed] = useState(true); // 默认收缩
+  
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+  
+  return (
+    <div key={idx} className="p-3 bg-white/50 rounded-lg border border-amber-200">
+      <div 
+        className="flex items-center gap-2 mb-2 text-xs font-medium text-amber-700 cursor-pointer select-none hover:bg-amber-50 rounded px-2 py-1 transition-colors"
+        onClick={toggleCollapse}
+      >
+        <Zap size={12} />
+        <span>工具：{toolName}</span>
+        {isCompleted && (
+          <ChevronLeft 
+            size={12} 
+            className={`ml-auto transition-transform ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
+          />
+        )}
+      </div>
+      
+      {!isCollapsed && (
+        <>
+          {state?.status === 'pending' && (
+            <div className="text-xs text-amber-600">等待执行...</div>
+          )}
+          
+          {state?.status === 'executing' && (
+            <div className="text-xs text-amber-600">
+              正在执行{state.title ? `: ${state.title}` : '...'}
+            </div>
+          )}
+          
+          {state?.status === 'completed' && (
+            <div className="text-xs text-green-600">
+              <div className="font-medium mb-1">执行完成</div>
+              {state.title && <div className="text-gray-500 mb-1">{state.title}</div>}
+              {state.output && (
+                <pre className="mt-2 p-2 bg-gray-50 rounded text-[10px] overflow-auto max-h-32">
+                  {typeof state.output === 'string' ? state.output : JSON.stringify(state.output, null, 2)}
+                </pre>
+              )}
+              {state.attachments && state.attachments.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {state.attachments.map((attachment, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[10px] text-gray-500">
+                      <Paperclip size={10} />
+                      <span>{attachment.filename || 'Attachment'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {state?.status === 'failed' && (
+            <div className="text-xs text-red-600">
+              <div className="font-medium mb-1">执行失败</div>
+              <pre className="mt-1 p-2 bg-red-50 rounded text-[10px] overflow-auto max-h-32">
+                {state.error || 'Unknown error'}
+              </pre>
+            </div>
+          )}
+        </>
+      )}
+      
+      {isCollapsed && isCompleted && (
+        <div className="text-xs">
+          {state?.status === 'completed' && (
+            <span className="text-green-600">✓ 已完成</span>
+          )}
+          {state?.status === 'failed' && (
+            <span className="text-red-600">✗ 已失败</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Part 类型定义
 interface BasePart {
   id: string;
@@ -84,6 +217,10 @@ interface ToolPart extends BasePart {
 interface ReasoningPart extends BasePart {
   type: 'reasoning';
   text: string;
+  time?: {
+    start?: number;
+    end?: number;
+  };
   state?: {
     status: 'pending' | 'generating' | 'completed';
     text: string;
@@ -128,71 +265,12 @@ function renderPart(part: Part, idx: number) {
   
   // ToolPart - 工具调用片段
   if (part.type === 'tool') {
-    const state = part.state;
-    const toolName = part.tool || 'Unknown';
-    
-    return (
-      <div key={idx} className="p-3 bg-white/50 rounded-lg border border-amber-200">
-        <div className="flex items-center gap-2 mb-2 text-xs font-medium text-amber-700">
-          <Zap size={12} />
-          <span>工具：{toolName}</span>
-        </div>
-        
-        {state?.status === 'pending' && (
-          <div className="text-xs text-amber-600">等待执行...</div>
-        )}
-        
-        {state?.status === 'executing' && (
-          <div className="text-xs text-amber-600">
-            正在执行{state.title ? `: ${state.title}` : '...'}
-          </div>
-        )}
-        
-        {state?.status === 'completed' && (
-          <div className="text-xs text-green-600">
-            <div className="font-medium mb-1">执行完成</div>
-            {state.title && <div className="text-gray-500 mb-1">{state.title}</div>}
-            {state.output && (
-              <pre className="mt-2 p-2 bg-gray-50 rounded text-[10px] overflow-auto max-h-32">
-                {typeof state.output === 'string' ? state.output : JSON.stringify(state.output, null, 2)}
-              </pre>
-            )}
-            {state.attachments && state.attachments.length > 0 && (
-              <div className="mt-2 space-y-1">
-                {state.attachments.map((attachment, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[10px] text-gray-500">
-                    <Paperclip size={10} />
-                    <span>{attachment.filename || 'Attachment'}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        
-        {state?.status === 'failed' && (
-          <div className="text-xs text-red-600">
-            <div className="font-medium mb-1">执行失败</div>
-            <pre className="mt-1 p-2 bg-red-50 rounded text-[10px] overflow-auto max-h-32">
-              {state.error || 'Unknown error'}
-            </pre>
-          </div>
-        )}
-      </div>
-    );
+    return <ToolPartComponent key={idx} part={part} idx={idx} />;
   }
   
   // ReasoningPart - 推理片段
   if (part.type === 'reasoning') {
-    return (
-      <div key={idx} className="p-3 bg-purple-50 rounded-lg border border-purple-100 text-xs text-purple-800">
-        <div className="flex items-center gap-2 mb-2 font-medium text-purple-700">
-          <Sparkles size={12} />
-          <span>推理中...</span>
-        </div>
-        <div className="whitespace-pre-wrap opacity-80">{part.text}</div>
-      </div>
-    );
+    return <ReasoningPartComponent key={idx} part={part} idx={idx} />;
   }
   
   // FilePart - 文件片段
@@ -825,7 +903,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
 
               return (
                 <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl p-3 text-sm leading-relaxed ${getMessageStyles()}`}>
+                  <div className={`rounded-2xl p-3 text-sm leading-relaxed ${getMessageStyles()} ${msg.role === 'assistant' ? 'w-[300px]' : 'max-w-[85%]'}`}>
                     {msg.role === 'assistant' && messageType !== 'message' && (
                       <div className="flex items-center mb-2 text-xs font-medium opacity-80">
                         {getMessageIcon()}
