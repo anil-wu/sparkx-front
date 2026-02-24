@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ChevronRight, Eye, EyeOff, Lock, Unlock, ChevronUp, ChevronDown, Minimize2, Image as ImageIcon, Layers } from 'lucide-react';
+import { ChevronRight, Eye, EyeOff, Lock, Unlock, ChevronUp, ChevronDown, Minimize2, Image as ImageIcon, Layers, Trash2 } from 'lucide-react';
 import { BaseElement } from '../types/BaseElement';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { useI18n } from '@/i18n/client';
+import { workspaceAPI } from '@/lib/workspace-api';
 
 interface HierarchyPanelProps {
   isCollapsed: boolean;
@@ -18,6 +19,12 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
   const selectedId = store?.selectedId || null;
   const selectElement = store?.selectElement || (() => {});
   const updateElement = store?.updateElement || (() => {});
+    const { removeElement } = useWorkspaceStore();
+  
+  const handleDeleteLayer = async (e: React.MouseEvent, elementId: string) => {
+    e.stopPropagation();
+    removeElement(elementId);
+  };
   
   if (isCollapsed) {
     return (
@@ -61,6 +68,7 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
               }
               updateElement(el.id, { locked: !el.locked });
             }}
+            onDelete={(e) => handleDeleteLayer(e, el.id)}
           />
         ))}
         {elements.length === 0 && (
@@ -89,14 +97,16 @@ function LayerItem({
   t,
   onClick,
   onToggleVisible,
-  onToggleLock
+  onToggleLock,
+  onDelete
 }: { 
   element: BaseElement<any>, 
   active: boolean, 
   t: (key: string, values?: Record<string, string | number>) => string;
   onClick: () => void,
   onToggleVisible: (e: React.MouseEvent) => void,
-  onToggleLock: (e: React.MouseEvent) => void
+  onToggleLock: (e: React.MouseEvent) => void,
+  onDelete: (e: React.MouseEvent) => void
 }) {
   // Determine icon/image based on type
   const isImage = element.type === 'image';
@@ -128,6 +138,15 @@ function LayerItem({
       </div>
 
       <div className="flex items-center gap-1">
+        <div 
+          onClick={onDelete}
+          className={`p-1 rounded-md hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors
+            opacity-0 group-hover:opacity-100
+          `}
+          title={t("hierarchy.delete")}
+        >
+          <Trash2 size={14} />
+        </div>
         <div 
           onClick={onToggleLock}
           className={`p-1 rounded-md hover:bg-gray-200 text-gray-400 transition-colors

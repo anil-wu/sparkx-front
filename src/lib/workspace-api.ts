@@ -180,6 +180,9 @@ export class WorkspaceAPI {
   async deleteLayer(layerId: number): Promise<DeleteLayerResponse> {
     const response = await fetch(`/api/workspace/layers/${layerId}`, {
       method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {

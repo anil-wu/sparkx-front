@@ -149,7 +149,8 @@
     "unlock": "解锁",
     "lock": "锁定",
     "hide": "隐藏",
-    "show": "显示"
+    "show": "显示",
+    "delete": "删除图层"
   },
   "project": {
     "assets": "项目资源",

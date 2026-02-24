@@ -149,7 +149,8 @@
     "unlock": "Unlock",
     "lock": "Lock",
     "hide": "Hide",
-    "show": "Show"
+    "show": "Show",
+    "delete": "Delete layer"
   },
   "project": {
     "assets": "Project assets",
