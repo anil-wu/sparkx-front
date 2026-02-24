@@ -10,17 +10,241 @@ interface ChatPanelProps {
   togglePanel: () => void;
 }
 
+// OpenCode 消息模型类型定义
+interface MessageTokens {
+  input: number;
+  output: number;
+  cache?: { read: number; write: number };
+  total?: number;
+}
+
+interface MessageTime {
+  created: number;
+  completed?: number;
+  started?: number;
+  compacted?: number;
+}
+
+interface MessageInfo {
+  id: string;
+  sessionID: string;
+  role: 'user' | 'assistant';
+  parentID?: string;
+  time: MessageTime;
+  agent: string;
+  model?: {
+    providerID: string;
+    modelID: string;
+  };
+  tokens?: MessageTokens;
+  cost?: number;
+  error?: {
+    name: string;
+    message: string;
+  };
+  abort?: boolean;
+  finish?: 'stop' | 'tool-calls';
+  summary?: {
+    title?: string;
+    body?: string;
+  };
+}
+
+// Part 类型定义
+interface BasePart {
+  id: string;
+  messageID: string;
+  sessionID: string;
+}
+
+interface TextPart extends BasePart {
+  type: 'text';
+  text: string;
+  state?: {
+    status: 'pending' | 'generating' | 'completed';
+    text: string;
+    time?: { started?: number; completed?: number };
+  };
+}
+
+interface ToolPart extends BasePart {
+  type: 'tool';
+  tool: string;
+  state?: {
+    status: 'pending' | 'executing' | 'completed' | 'failed';
+    title?: string;
+    input?: object;
+    output?: string | object;
+    error?: string;
+    attachments?: Array<{ filename: string; url?: string }>;
+    time?: { started?: number; completed?: number };
+  };
+}
+
+interface ReasoningPart extends BasePart {
+  type: 'reasoning';
+  text: string;
+  state?: {
+    status: 'pending' | 'generating' | 'completed';
+    text: string;
+    time?: { started?: number; completed?: number };
+  };
+}
+
+interface FilePart extends BasePart {
+  type: 'file';
+  url: string;
+  filename?: string;
+  mime?: string;
+}
+
+interface OutputPart extends BasePart {
+  type: 'output';
+  format: string;
+  content: string;
+}
+
+type Part = TextPart | ToolPart | ReasoningPart | FilePart | OutputPart;
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  parts?: any[];
+  parts?: Part[];
+  info?: Partial<MessageInfo>;
 }
 
 const client = createOpencodeClient({
   baseUrl: "http://localhost:4096",
 });
+
+// Part 渲染组件
+function renderPart(part: Part, idx: number) {
+  // TextPart - 文本片段
+  if (part.type === 'text') {
+    return <div key={idx} className="whitespace-pre-wrap">{part.text}</div>;
+  }
+  
+  // ToolPart - 工具调用片段
+  if (part.type === 'tool') {
+    const state = part.state;
+    const toolName = part.tool || 'Unknown';
+    
+    return (
+      <div key={idx} className="p-3 bg-white/50 rounded-lg border border-amber-200">
+        <div className="flex items-center gap-2 mb-2 text-xs font-medium text-amber-700">
+          <Zap size={12} />
+          <span>工具：{toolName}</span>
+        </div>
+        
+        {state?.status === 'pending' && (
+          <div className="text-xs text-amber-600">等待执行...</div>
+        )}
+        
+        {state?.status === 'executing' && (
+          <div className="text-xs text-amber-600">
+            正在执行{state.title ? `: ${state.title}` : '...'}
+          </div>
+        )}
+        
+        {state?.status === 'completed' && (
+          <div className="text-xs text-green-600">
+            <div className="font-medium mb-1">执行完成</div>
+            {state.title && <div className="text-gray-500 mb-1">{state.title}</div>}
+            {state.output && (
+              <pre className="mt-2 p-2 bg-gray-50 rounded text-[10px] overflow-auto max-h-32">
+                {typeof state.output === 'string' ? state.output : JSON.stringify(state.output, null, 2)}
+              </pre>
+            )}
+            {state.attachments && state.attachments.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {state.attachments.map((attachment, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px] text-gray-500">
+                    <Paperclip size={10} />
+                    <span>{attachment.filename || 'Attachment'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {state?.status === 'failed' && (
+          <div className="text-xs text-red-600">
+            <div className="font-medium mb-1">执行失败</div>
+            <pre className="mt-1 p-2 bg-red-50 rounded text-[10px] overflow-auto max-h-32">
+              {state.error || 'Unknown error'}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // ReasoningPart - 推理片段
+  if (part.type === 'reasoning') {
+    return (
+      <div key={idx} className="p-3 bg-purple-50 rounded-lg border border-purple-100 text-xs text-purple-800">
+        <div className="flex items-center gap-2 mb-2 font-medium text-purple-700">
+          <Sparkles size={12} />
+          <span>推理中...</span>
+        </div>
+        <div className="whitespace-pre-wrap opacity-80">{part.text}</div>
+      </div>
+    );
+  }
+  
+  // FilePart - 文件片段
+  if (part.type === 'file') {
+    const fileUrl = part.url?.startsWith('http') ? part.url : `http://localhost:4096${part.url}`;
+    
+    if (part.mime?.startsWith('image/')) {
+      return (
+        <div key={idx} className="mt-2 rounded-lg overflow-hidden border border-gray-200 bg-white">
+          <img 
+            src={fileUrl} 
+            alt={part.filename || 'Generated Image'} 
+            className="w-full h-auto object-contain max-h-[300px]"
+            loading="lazy"
+          />
+          {part.filename && (
+            <div className="px-2 py-1 text-[10px] text-gray-400 bg-gray-50 border-t border-gray-100 truncate">
+              {part.filename}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    return (
+      <div key={idx} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200 text-xs">
+        <Paperclip size={14} className="text-gray-400" />
+        <a href={fileUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline truncate">
+          {part.filename || 'Download File'}
+        </a>
+      </div>
+    );
+  }
+  
+  // OutputPart - 输出片段
+  if (part.type === 'output') {
+    return (
+      <div key={idx} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+        <div className="flex items-center gap-2 mb-2 text-xs font-medium text-blue-700">
+          <Box size={12} />
+          <span>输出：{part.format}</span>
+        </div>
+        <pre className="text-xs text-blue-800 whitespace-pre-wrap overflow-auto max-h-64">
+          {part.content}
+        </pre>
+      </div>
+    );
+  }
+  
+  // 未知类型
+  return null;
+}
 
 export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) {
   const { locale, t } = useI18n();
@@ -40,6 +264,9 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsFeedback, setSettingsFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
+  
+  // SSE 订阅状态跟踪
+  const isSubscribedRef = useRef(false);
 
   // 检查服务健康状态
   const checkHealth = async () => {
@@ -61,8 +288,8 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
 
   useEffect(() => {
     checkHealth();
-    const timer = setInterval(checkHealth, 30000); // 每30秒检查一次
-    return () => clearInterval(timer);
+    // const timer = setInterval(checkHealth, 30000); // 每30秒检查一次
+    // return () => clearInterval(timer);
   }, []);
 
   // 获取当前配置
@@ -179,96 +406,241 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
 
   // 监听实时推送消息 (SSE)
   useEffect(() => {
-    if (!sessionId || !isOnline) return;
-
-    let abortController: AbortController | null = null;
-    let eventStream: any = null;
-
+    if (!sessionId || !isOnline) {
+      console.log("SSE not ready:", { sessionId, isOnline });
+      return;
+    }
+    
+    // 检查是否已经订阅，防止重复订阅
+    if (isSubscribedRef.current) {
+      console.log("SSE already subscribed for session:", sessionId);
+      return;
+    }
+    
+    console.log("Setting up SSE for session:", sessionId);
+    
+    let isCancelled = false;
+    isSubscribedRef.current = true;
+    
     const setupSSE = async () => {
       try {
-        console.log("Setting up SSE event stream for session:", sessionId);
+        const events = await client.event.subscribe();
         
-        // 创建 AbortController 用于取消订阅
-        abortController = new AbortController();
+        if (isCancelled) return;
         
-        // 使用 SDK 的 event.subscribe 方法，传入 onSseEvent 回调
-        const result = await client.event.subscribe({
-          signal: abortController.signal,
-          onSseEvent: (event: any) => {
-            console.log("SSE event received------》:", event);
-            if (!event || !event.data) return;
+        console.log("SSE subscription established for session:", sessionId);
+        
+        for await (const event of events.stream) {
+          if (isCancelled) break;
+          
+          const eventType: string = event.type;
+          
+          // 消息部分增量更新（流式输出）
+          // 只更新已存在的消息和 Part，不创建新消息
+          if (eventType === 'message.part.delta') {
+            const { delta, field, messageID, partID, sessionID } = event.properties as any;
             
-            const data = event.data;
-            console.log("SSE event received:", data);
+            if (!delta || !messageID || !partID || field !== 'text') return;
             
-            // 过滤当前会话相关的事件
-            if (data.sessionID === sessionId) {
-              const { type, properties } = data;
+            setMessages(prev => {
+              const existingMsgIndex = prev.findIndex(m => m.id === messageID);
               
-              if (type === 'message.part.updated' || type === 'message.updated' || type === 'message.part.removed') {
-                setMessages(prev => {
-                  const msgId = properties?.messageID || properties?.part?.messageID;
-                  const existingMsgIdx = prev.findIndex(m => m.id === msgId);
-                  
-                  if (existingMsgIdx !== -1) {
-                    const newMessages = [...prev];
-                    const existingMsg = { ...newMessages[existingMsgIdx] };
-                    
-                    if (type === 'message.part.updated' && properties?.part) {
-                      const part = properties.part;
-                      const existingParts = [...(existingMsg.parts || [])];
-                      const partIdx = existingParts.findIndex((p: any) => p.id === part.id);
-                      
-                      if (partIdx !== -1) {
-                        existingParts[partIdx] = part;
-                      } else {
-                        existingParts.push(part);
-                      }
-                      
-                      existingMsg.parts = existingParts;
-                      existingMsg.content = existingParts.map((p: any) => p.text || '').filter(Boolean).join('\n');
-                    } else if (type === 'message.part.removed') {
-                      const existingParts = (existingMsg.parts || []).filter((p: any) => p.id !== properties.id);
-                      existingMsg.parts = existingParts;
-                      existingMsg.content = existingParts.map((p: any) => p.text || '').filter(Boolean).join('\n');
-                    } else if (type === 'message.updated' && properties.message) {
-                      existingMsg.content = properties.message.parts?.map((p: any) => p.text || '').filter(Boolean).join('\n') || existingMsg.content;
-                      existingMsg.parts = properties.message.parts || existingMsg.parts;
-                    }
-                    
-                    newMessages[existingMsgIdx] = existingMsg;
-                    return newMessages;
-                  } else if (type === 'message.updated' && properties.message && properties.message.role === 'assistant') {
-                    return [...prev, {
-                      id: msgId,
-                      role: 'assistant',
-                      content: properties.message.parts?.map((p: any) => p.text || '').filter(Boolean).join('\n') || '',
-                      timestamp: new Date(),
-                      parts: properties.message.parts
-                    }];
+              if (existingMsgIndex >= 0) {
+                // 消息已存在，增量更新
+                const updatedMsg = { ...prev[existingMsgIndex] };
+                if (!updatedMsg.parts) updatedMsg.parts = [];
+                
+                const partIndex = updatedMsg.parts.findIndex(p => p.id === partID);
+                
+                if (partIndex >= 0) {
+                  // Part 已存在，追加文本
+                  const part = updatedMsg.parts[partIndex];
+                  if (part.type === 'text' || part.type === 'reasoning') {
+                    part.text = (part.text || '') + delta;
                   }
                   
-                  return prev;
-                });
+                  // 更新消息内容
+                  updatedMsg.content = updatedMsg.parts.map(p => {
+                    if (p.type === 'text' || p.type === 'reasoning') return p.text;
+                    return '';
+                  }).join('');
+                }
+                
+                const newMessages = [...prev];
+                newMessages[existingMsgIndex] = updatedMsg;
+                return newMessages;
               }
+              
+              // 消息不存在，忽略（应该先有 message.updated 创建消息）
+              return prev;
+            });
+          }
+          
+          // 消息部分完整更新
+          // 负责创建或更新 Part 对象
+          else if (eventType === 'message.part.updated') {
+            const { part } = event.properties as { part: Part };
+            
+            if (!part) return;
+            
+            setMessages(prev => {
+              const existingMsgIndex = prev.findIndex(m => m.id === part.messageID);
+              
+              if (existingMsgIndex >= 0) {
+                // 消息已存在，更新或添加 Part
+                const updatedMsg = { ...prev[existingMsgIndex] };
+                if (!updatedMsg.parts) updatedMsg.parts = [];
+                
+                const partIndex = updatedMsg.parts.findIndex(p => p.id === part.id);
+                
+                if (partIndex >= 0) {
+                  // Part 已存在，替换（保留累加的 text）
+                  const existingPart = updatedMsg.parts[partIndex];
+                  if ((part.type === 'text' || part.type === 'reasoning') && existingPart.type === part.type) {
+                    (part as any).text = (existingPart as any).text || part.text;
+                  }
+                  updatedMsg.parts[partIndex] = part;
+                } else {
+                  // Part 不存在，添加
+                  updatedMsg.parts.push(part);
+                }
+                
+                // 更新消息内容
+                if (part.type === 'text' || part.type === 'reasoning') {
+                  const textPart = updatedMsg.parts.find(p => p.type === 'text' || p.type === 'reasoning');
+                  if (textPart && (textPart.type === 'text' || textPart.type === 'reasoning')) {
+                    updatedMsg.content = textPart.text || '';
+                  }
+                }
+                
+                const newMessages = [...prev];
+                newMessages[existingMsgIndex] = updatedMsg;
+                return newMessages;
+              } else {
+                // 消息不存在，忽略（应该先有 message.updated 创建消息）
+                console.warn('message.part.updated: message not found', part.messageID);
+                return prev;
+              }
+            });
+          }
+          
+          // 消息元数据更新
+          // 负责创建或更新消息（包括用户消息和助手消息）
+          else if (eventType === 'message.updated') {
+            const { info } = event.properties as { info: MessageInfo };
+            
+            setMessages(prev => {
+              const msgIndex = prev.findIndex(m => m.id === info.id);
+              if (msgIndex >= 0) {
+                // 消息已存在，更新信息
+                const updatedMsg = { ...prev[msgIndex] };
+                updatedMsg.info = { ...updatedMsg.info, ...info };
+                
+                // 如果有错误信息，更新内容
+                if (info.error) {
+                  updatedMsg.content = `${updatedMsg.content}\n\n[错误：${info.error.message}]`;
+                }
+                
+                const newMessages = [...prev];
+                newMessages[msgIndex] = updatedMsg;
+                return newMessages;
+              } else {
+                // 消息不存在，创建新消息
+                const newMessage: ChatMessage = {
+                  id: info.id,
+                  role: info.role,
+                  content: '',
+                  timestamp: new Date(info.time.created),
+                  info: { ...info }
+                };
+                return [...prev, newMessage];
+              }
+            });
+          }
+          
+          // 会话状态更新
+          else if (eventType === 'session.status') {
+            const { status } = event.properties as { status: { type: 'idle' | 'busy' | 'retry'; attempt?: number; message?: string } };
+            
+            switch (status.type) {
+              case 'idle':
+                setIsLoading(false);
+                setError(null);
+                break;
+              case 'busy':
+                setIsLoading(true);
+                setError(null);
+                break;
+              case 'retry':
+                setError(`重试中 (${status.attempt}/${status.message})`);
+                break;
             }
           }
-        });
-        
-        eventStream = result;
-        console.log("SSE event stream established");
-      } catch (err) {
-        console.error("Failed to setup SSE:", err);
+          
+          // 会话错误
+          else if (eventType === 'session.error') {
+            const { error } = event.properties as { error?: any };
+            if (error) {
+              const errorMsg = typeof error === 'string' ? error : JSON.stringify(error);
+              setError(`会话错误：${errorMsg}`);
+              setIsLoading(false);
+            }
+          }
+          
+          // 权限请求
+          else if (eventType === 'permission.asked' || eventType === 'permission.updated') {
+            const perm = event.properties as any;
+            console.log('权限请求:', perm.title || perm.type, perm);
+            // TODO: 显示权限请求对话框
+          }
+          
+          // Todo 列表更新
+          else if (eventType === 'todo.updated') {
+            const { todos } = event.properties as { todos: Array<{ content: string; status: string; priority: string }> };
+            console.log('Todo 列表更新:', todos);
+            // TODO: 在 UI 中显示 Todo 列表
+          }
+          
+          // 文件编辑通知
+          else if (eventType === 'file.edited') {
+            const { file } = event.properties as { file: string };
+            console.log('文件已编辑:', file);
+            // TODO: 显示文件编辑通知
+          }
+          
+          // 命令执行通知
+          else if (eventType === 'command.executed') {
+            const { name, arguments: args } = event.properties as { name: string; arguments?: string };
+            console.log('命令已执行:', name, args);
+            // TODO: 显示命令执行结果
+          }
+          
+          // 会话差异更新
+          else if (eventType === 'session.diff') {
+            const { diff } = event.properties as { diff: Array<{ path: string; additions: number; deletions: number }> };
+            console.log('会话文件变更:', diff);
+            // TODO: 显示文件变更摘要
+          }
+          
+          // 其他事件暂时忽略
+          else {
+            console.log('未处理的事件:', eventType, event.properties);
+          }
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('SSE error:', error);
+        }
       }
     };
 
     setupSSE();
 
+    // 清理函数
     return () => {
-      if (abortController) {
-        abortController.abort();
-        console.log("SSE event stream aborted");
-      }
+      console.log('Cleaning up SSE for session:', sessionId);
+      isCancelled = true;
+      isSubscribedRef.current = false;
     };
   }, [sessionId, isOnline]);
 
@@ -292,44 +664,20 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
     setError(null);
 
     try {
       console.log("Sending prompt to OpenCode session:", sessionId, inputValue);
-      const response = await client.session.prompt({
+      client.session.prompt({
         path: { id: sessionId },
         body: {
-          parts: [{ type: "text", text: inputValue }]
+          parts: [{ type: "text", text: inputValue}]
         }
+
       });
-
-      console.log("OpenCode prompt response:", response);
-
-      if (response.data) {
-        const assistantMessage: ChatMessage = {
-          id: response.data.info?.id || Date.now().toString(),
-          role: 'assistant',
-          content: response.data.parts?.map((p: any) => p.text || '').filter(Boolean).join('\n') || '',
-          timestamp: new Date(),
-          parts: response.data.parts
-        };
-        
-        // 如果没有内容也没有零件，显示一条提示信息以便调试
-        if (!assistantMessage.content && (!assistantMessage.parts || assistantMessage.parts.length === 0)) {
-          assistantMessage.content = "(收到空回复，请检查模型配置或 API Key)";
-        }
-        
-        setMessages(prev => [...prev, assistantMessage]);
-      } else if (response.error) {
-        console.error("OpenCode error response:", response.error);
-        setError(t('chat.error_send_failed') + ": " + JSON.stringify(response.error));
-      } else {
-        console.warn("Received empty response from OpenCode prompt");
-        setError(t('chat.error_send_failed') + " (空响应)");
-      }
     } catch (error) {
       console.error("Failed to send message to OpenCode:", error);
       setError(t('chat.error_send_failed'));
@@ -398,77 +746,107 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl p-3 text-sm leading-relaxed ${
-                  msg.role === 'user' 
-                    ? 'bg-blue-500 text-white rounded-tr-none' 
-                    : 'bg-gray-50 text-gray-800 rounded-tl-none shadow-sm border border-gray-100'
-                }`}>
-                  {msg.parts && msg.parts.length > 0 ? (
-                    <div className="space-y-3">
-                      {msg.parts.map((part, idx) => {
-                        if (part.type === 'text') {
-                          return <div key={idx} className="whitespace-pre-wrap">{part.text}</div>;
-                        }
-                        if (part.type === 'file' && part.mime?.startsWith('image/')) {
-                          return (
-                            <div key={idx} className="mt-2 rounded-lg overflow-hidden border border-gray-200 bg-white">
-                              <img 
-                                src={part.url.startsWith('http') ? part.url : `http://localhost:4096${part.url}`} 
-                                alt={part.filename || 'Generated Image'} 
-                                className="w-full h-auto object-contain max-h-[300px]"
-                                loading="lazy"
-                              />
-                              {part.filename && (
-                                <div className="px-2 py-1 text-[10px] text-gray-400 bg-gray-50 border-t border-gray-100 truncate">
-                                  {part.filename}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-                        if (part.type === 'file') {
-                          return (
-                            <div key={idx} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200 text-xs">
-                              <Paperclip size={14} className="text-gray-400" />
-                              <a href={part.url.startsWith('http') ? part.url : `http://localhost:4096${part.url}`} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline truncate">
-                                {part.filename || 'Download File'}
-                              </a>
-                            </div>
-                          );
-                        }
-                        if (part.type === 'subtask') {
-                          return (
-                            <div key={idx} className="p-2 bg-blue-50/50 rounded-lg border border-blue-100/50 text-xs">
-                              <div className="flex items-center gap-2 mb-1 font-medium text-blue-700">
-                                <Box size={12} />
-                                <span>{part.agent || 'Subtask'}</span>
-                              </div>
-                              <p className="text-blue-600/80">{part.description || part.prompt}</p>
-                            </div>
-                          );
-                        }
-                        if (part.type === 'agent') {
-                          return (
-                            <div key={idx} className="flex items-center gap-2 p-2 bg-gray-100/50 rounded-lg text-xs italic text-gray-500">
-                              <Sparkles size={12} />
-                              <span>{part.name} is thinking...</span>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })}
-                    </div>
-                  ) : (
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
-                  )}
+            {messages.map((msg) => {
+              // 根据消息中的 Part 类型确定消息类型
+              const getMessageTypeFromParts = (): 'thinking' | 'tool_call' | 'tool_result' | 'error' | 'message' => {
+                if (!msg.parts || msg.parts.length === 0) return 'message';
+                
+                // 检查是否有错误
+                if (msg.info?.error) return 'error';
+                
+                // 检查是否有工具调用
+                const hasToolPart = msg.parts.some(p => p.type === 'tool');
+                if (hasToolPart) {
+                  const toolPart = msg.parts.find(p => p.type === 'tool') as ToolPart | undefined;
+                  if (toolPart?.state?.status === 'failed') return 'error';
+                  if (toolPart?.state?.status === 'completed') return 'tool_result';
+                  return 'tool_call';
+                }
+                
+                // 检查是否有推理片段
+                const hasReasoningPart = msg.parts.some(p => p.type === 'reasoning');
+                if (hasReasoningPart) return 'thinking';
+                
+                return 'message';
+              };
+
+              const messageType = getMessageTypeFromParts();
+              
+              const getMessageStyles = () => {
+                if (msg.role === 'user') {
+                  return 'bg-blue-500 text-white rounded-tr-none';
+                }
+                
+                switch (messageType) {
+                  case 'thinking':
+                    return 'bg-purple-50 text-purple-800 rounded-tl-none border border-purple-100 italic';
+                  case 'tool_call':
+                    return 'bg-amber-50 text-amber-800 rounded-tl-none border border-amber-100';
+                  case 'tool_result':
+                    return 'bg-green-50 text-green-800 rounded-tl-none border border-green-100';
+                  case 'error':
+                    return 'bg-red-50 text-red-800 rounded-tl-none border border-red-100';
+                  default:
+                    return 'bg-gray-50 text-gray-800 rounded-tl-none shadow-sm border border-gray-100';
+                }
+              };
+
+              const getMessageIcon = () => {
+                if (msg.role === 'user') return null;
+                
+                switch (messageType) {
+                  case 'thinking':
+                    return <Sparkles size={14} className="text-purple-500 mr-2" />;
+                  case 'tool_call':
+                    return <Zap size={14} className="text-amber-500 mr-2" />;
+                  case 'tool_result':
+                    return <Check size={14} className="text-green-500 mr-2" />;
+                  case 'error':
+                    return <AlertCircle size={14} className="text-red-500 mr-2" />;
+                  default:
+                    return null;
+                }
+              };
+
+              const getMessageTypeLabel = () => {
+                switch (messageType) {
+                  case 'thinking':
+                    return '思考中...';
+                  case 'tool_call':
+                    return '工具调用';
+                  case 'tool_result':
+                    return '工具结果';
+                  case 'error':
+                    return '错误';
+                  default:
+                    return '';
+                }
+              };
+
+              return (
+                <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`max-w-[85%] rounded-2xl p-3 text-sm leading-relaxed ${getMessageStyles()}`}>
+                    {msg.role === 'assistant' && messageType !== 'message' && (
+                      <div className="flex items-center mb-2 text-xs font-medium opacity-80">
+                        {getMessageIcon()}
+                        <span>{getMessageTypeLabel()}</span>
+                      </div>
+                    )}
+                    
+                    {msg.parts && msg.parts.length > 0 ? (
+                      <div className="space-y-3">
+                        {msg.parts.map((part, idx) => renderPart(part, idx))}
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-gray-400 mt-1">
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-                <span className="text-[10px] text-gray-400 mt-1">
-                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ))}
+              );
+            })}
             
             {isLoading && (
               <div className="flex items-center gap-2 text-xs text-gray-400 p-2">
