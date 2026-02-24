@@ -67,7 +67,7 @@ export default function SaveButton({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col items-end gap-1">
       <button
         onClick={onSave}
         disabled={saveStatus === 'saving'}
@@ -79,7 +79,7 @@ export default function SaveButton({
             : saveStatus === 'conflict'
             ? 'bg-yellow-50 text-yellow-700'
             : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
+        } disabled:opacity-50 disabled:cursor-not-allowed shadow-sm`}
         title={saveStatus === 'error' ? errorMessage || '' : undefined}
       >
         {getStatusIcon()}
@@ -87,7 +87,7 @@ export default function SaveButton({
       </button>
       
       {lastSavedAt && saveStatus !== 'saving' && (
-        <span className="text-xs text-slate-500">
+        <span className="text-[10px] text-slate-500 bg-white/50 px-1.5 py-0.5 rounded backdrop-blur-sm">
           {t('workspace.last_saved')}: {formatLastSaved(lastSavedAt)}
         </span>
       )}

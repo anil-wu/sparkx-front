@@ -38,7 +38,7 @@ export default function RecycleBinPanel({
       const data = await workspaceAPI.getDeletedLayers(canvasId, 50);
       setDeletedLayers(data.deletedLayers);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load deleted layers');
+      setError(err instanceof Error ? err.message : t('workspace.load_deleted_failed'));
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export default function RecycleBinPanel({
                         </span>
                         <span className="flex items-center gap-1 text-xs text-gray-500">
                           <User className="h-3 w-3" />
-                          ID: {layer.deletedBy}
+                          {t('workspace.deleted_by', { id: layer.deletedBy })}
                         </span>
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { X, Download, RotateCcw, AlertTriangle } from 'lucide-react';
+import { X, Download, RotateCcw, AlertTriangle, Save } from 'lucide-react';
 import { useI18n } from '@/i18n/client';
 
 interface ConflictData {

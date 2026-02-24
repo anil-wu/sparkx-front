@@ -151,7 +151,33 @@
     "uploading_image": "上传图片中...",
     "upload_failed": "上传失败",
     "select_at_least_two": "请至少选择两个元素",
-    "recycle_bin": "回收站"
+    "recycle_bin": "回收站",
+    "save": "空间保存",
+    "saving": "保存中...",
+    "saved": "已保存",
+    "save_error": "保存失败",
+    "conflict": "版本冲突",
+    "last_saved": "最后保存时间",
+    "just_now": "刚刚",
+    "minute_ago": "1 分钟前",
+    "minutes_ago": "{count} 分钟前",
+    "hour_ago": "1 小时前",
+    "hours_ago": "{count} 小时前",
+    "loading": "加载中...",
+    "recycle_bin_empty": "回收站是空的",
+    "restore": "恢复",
+    "total_deleted": "总计已删除",
+    "close": "关闭",
+    "load_deleted_failed": "加载已删除图层失败",
+    "deleted_by": "ID：{id}",
+    "conflict_detected": "检测到版本冲突",
+    "conflict_description": "远程版本已被更新。请选择如何处理冲突：",
+    "conflict_tip": "提示：你可以下载两个版本进行手动对比后再决定。",
+    "use_remote_version": "使用远程版本（覆盖本地）",
+    "force_save": "强制保存（覆盖远程）",
+    "download_both_versions": "下载两个版本对比",
+    "network_error_offline": "网络错误，已保存到离线队列",
+    "save_failed": "保存失败"
   },
   "hierarchy": {
     "title": "图层 ({count})",
@@ -160,7 +186,15 @@
     "lock": "锁定",
     "hide": "隐藏",
     "show": "显示",
-    "delete": "删除图层"
+    "delete": "删除图层",
+    "show_layers": "显示图层",
+    "type": {
+      "image": "图片",
+      "shape": "形状",
+      "text": "文本",
+      "textShape": "文本形状",
+      "draw": "手绘"
+    }
   },
   "project": {
     "assets": "项目资源",

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { workspaceAPI, LayerSyncRequest } from '@/lib/workspace-api';
 import { BaseElement } from '@/components/Workspace/types/BaseElement';
+import { useI18n } from '@/i18n/client';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
 
@@ -21,6 +22,7 @@ interface OfflineOperation {
 }
 
 export function useWorkspaceSave(projectId: number) {
+  const { t } = useI18n();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -148,7 +150,7 @@ export function useWorkspaceSave(projectId: number) {
             uploaded: 0,
             updated: 0,
             skipped: 0,
-            error: 'Network error, saved to offline queue',
+            error: t('workspace.network_error_offline'),
           };
         }
         throw error;
@@ -169,7 +171,7 @@ export function useWorkspaceSave(projectId: number) {
       };
     } catch (error) {
       setSaveStatus('error');
-      const errorMsg = error instanceof Error ? error.message : 'Save failed';
+      const errorMsg = error instanceof Error ? error.message : t('workspace.save_failed');
       setErrorMessage(errorMsg);
 
       return {

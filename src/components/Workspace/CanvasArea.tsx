@@ -554,6 +554,33 @@ export default function CanvasArea({
   return (
     <div className="flex flex-1 overflow-hidden relative">
       {/* 左侧画布区域 */}
+      <div className="absolute top-0 right-4 h-full z-40 flex flex-row-reverse items-start gap-2 pointer-events-none">
+        {/* 右侧 HierarchyPanel - 位于 EditorStage 上面 */}
+        <div className={`h-full transition-all duration-300 ease-in-out pointer-events-auto ${isHierarchyCollapsed ? 'w-10 pt-4' : 'w-[260px]'}`}>
+          <HierarchyPanel
+            isCollapsed={isHierarchyCollapsed}
+            toggleSidebar={() => setIsHierarchyCollapsed(!isHierarchyCollapsed)}
+          />
+        </div>
+
+        {/* 顶部操作按钮 - 放置于图层面板左侧 */}
+        <div className="pt-4 flex items-start gap-2 pointer-events-auto">
+          <SaveButton
+            saveStatus={saveStatus}
+            lastSavedAt={lastSavedAt}
+            onSave={handleSave}
+            errorMessage={errorMessage}
+          />
+          <button
+            onClick={() => setShowRecycleBin(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+            title={t('workspace.recycle_bin')}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
       <div
         className="flex-1 relative bg-[#fafafa] overflow-hidden"
         ref={containerRef}
@@ -569,22 +596,6 @@ export default function CanvasArea({
             disabled={false}
           />
         )}
-        
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-          <SaveButton
-            saveStatus={saveStatus}
-            lastSavedAt={lastSavedAt}
-            onSave={handleSave}
-            errorMessage={errorMessage}
-          />
-          <button
-            onClick={() => setShowRecycleBin(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-            title={t('workspace.recycle_bin')}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
 
         <ToolsPanel
           isSidebarCollapsed={isSidebarCollapsed}
@@ -639,14 +650,6 @@ export default function CanvasArea({
 
         {/* History Controls */}
         <HistoryControls />
-      </div>
-
-      {/* 右侧 HierarchyPanel - 位于 EditorStage 上面 */}
-      <div className="absolute top-0 right-4 h-full w-64 z-40">
-        <HierarchyPanel
-          isCollapsed={isHierarchyCollapsed}
-          toggleSidebar={() => setIsHierarchyCollapsed(!isHierarchyCollapsed)}
-        />
       </div>
 
       {/* Conflict Dialog */}

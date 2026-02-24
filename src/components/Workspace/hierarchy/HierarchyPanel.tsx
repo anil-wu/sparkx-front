@@ -59,8 +59,8 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
     return (
       <button 
         onClick={toggleSidebar}
-        className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center z-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all shadow-md"
-        title="Show Layers"
+        className="w-10 h-10 flex items-center justify-center z-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all shadow-md bg-white border border-gray-100"
+        title={t("hierarchy.show_layers")}
       >
         <Layers size={20} />
       </button>
@@ -110,6 +110,7 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
         <button 
           onClick={toggleSidebar}
           className="w-full flex items-center justify-start px-2 py-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 rounded-lg transition-colors"
+          title={t("hierarchy.hide")}
         >
           <Minimize2 size={20} />
         </button>
@@ -161,7 +162,7 @@ function LayerItem({
         <div className={`text-sm font-medium truncate ${active ? 'text-gray-900' : 'text-gray-600'}`}>
           {element.name}
         </div>
-        <div className="text-xs text-gray-400">{element.type}</div>
+        <div className="text-xs text-gray-400">{t(`hierarchy.type.${element.type}`)}</div>
       </div>
 
       <div className="flex items-center gap-1">

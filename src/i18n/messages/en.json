@@ -151,7 +151,33 @@
     "uploading_image": "Uploading image...",
     "upload_failed": "Upload failed",
     "select_at_least_two": "Please select at least two elements",
-    "recycle_bin": "Recycle bin"
+    "recycle_bin": "Recycle bin",
+    "save": "Save Workspace",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "save_error": "Save error",
+    "conflict": "Conflict",
+    "last_saved": "Last saved",
+    "just_now": "just now",
+    "minute_ago": "1 minute ago",
+    "minutes_ago": "{count} minutes ago",
+    "hour_ago": "1 hour ago",
+    "hours_ago": "{count} hours ago",
+    "loading": "Loading...",
+    "recycle_bin_empty": "Recycle bin is empty",
+    "restore": "Restore",
+    "total_deleted": "Total deleted",
+    "close": "Close",
+    "load_deleted_failed": "Failed to load deleted layers",
+    "deleted_by": "ID: {id}",
+    "conflict_detected": "Version Conflict Detected",
+    "conflict_description": "The remote version has been updated. Please choose how to handle the conflict:",
+    "conflict_tip": "Tip: You can download both versions for manual comparison before deciding.",
+    "use_remote_version": "Use Remote Version (Overwrite Local)",
+    "force_save": "Force Save (Overwrite Remote)",
+    "download_both_versions": "Download Both Versions",
+    "network_error_offline": "Network error, saved to offline queue",
+    "save_failed": "Save failed"
   },
   "hierarchy": {
     "title": "Layers ({count})",
@@ -160,7 +186,15 @@
     "lock": "Lock",
     "hide": "Hide",
     "show": "Show",
-    "delete": "Delete layer"
+    "delete": "Delete layer",
+    "show_layers": "Show Layers",
+    "type": {
+      "image": "Image",
+      "shape": "Shape",
+      "text": "Text",
+      "textShape": "Text Shape",
+      "draw": "Draw"
+    }
   },
   "project": {
     "assets": "Project assets",
