@@ -234,7 +234,21 @@
     "prompt_preview": "角色端正战...",
     "generate_three_view_white_bg": "生成三视图，背景白色",
     "followup_message": "我来为您生成这个端正战力姿势角色的三视图，背景设为白色。",
-    "input_placeholder": "请输入你的设计需求"
+    "input_placeholder": "请输入你的设计需求",
+    "error_session_failed": "初始化会话失败，请检查 OpenCode 服务器连接",
+    "error_send_failed": "发送消息失败，请重试",
+    "new_chat": "开启新对话",
+    "new_chat_confirm": "确定要开启新对话吗？当前对话记录将被清除。",
+    "settings": "设置",
+    "model_provider": "模型提供商",
+    "api_key": "API 密钥",
+    "model_id": "模型 ID",
+    "save_settings": "保存设置",
+    "settings_saved": "设置已保存",
+    "settings_failed": "保存设置失败",
+    "provider_placeholder": "例如: openrouter",
+    "model_placeholder": "例如: qwen/qwen-max",
+    "api_key_placeholder": "请输入 API 密钥"
   },
   "editor": {
     "properties": "属性调整",

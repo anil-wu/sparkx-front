@@ -234,7 +234,21 @@
     "prompt_preview": "Neutral stance...",
     "generate_three_view_white_bg": "Generate a 3-view sheet, white background",
     "followup_message": "I'll generate a 3-view sheet for this character in a neutral battle stance, with a white background.",
-    "input_placeholder": "Describe your design request"
+    "input_placeholder": "Describe your design request",
+    "error_session_failed": "Failed to initialize session, please check OpenCode server connection",
+    "error_send_failed": "Failed to send message, please try again",
+    "new_chat": "New Chat",
+    "new_chat_confirm": "Are you sure you want to start a new chat? Current chat history will be cleared.",
+    "settings": "Settings",
+    "model_provider": "Model Provider",
+    "api_key": "API Key",
+    "model_id": "Model ID",
+    "save_settings": "Save Settings",
+    "settings_saved": "Settings saved",
+    "settings_failed": "Failed to save settings",
+    "provider_placeholder": "e.g. openrouter",
+    "model_placeholder": "e.g. qwen/qwen-max",
+    "api_key_placeholder": "Enter API key"
   },
   "editor": {
     "properties": "Properties",
