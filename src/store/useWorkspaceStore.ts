@@ -1,3 +1,4 @@
+import Konva from 'konva';
 import { create } from 'zustand';
 import { temporal, TemporalState } from 'zundo';
 import { BaseElement, ElementFactory } from '../components/Workspace/types/BaseElement';
@@ -46,7 +47,7 @@ interface WorkspaceState {
   updateElement: (id: string, updates: Partial<ElementState>) => void;
   removeElement: (id: string) => void;
   duplicateElement: (id: string) => void;
-  mergeSelectedElements: (projectId: number) => Promise<void>;
+  mergeSelectedElements: (projectId: number, stage?: Konva.Stage) => Promise<void>;
   dragSelectedElements: (deltaX: number, deltaY: number) => void;
 }
 
@@ -209,7 +210,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           };
         }),
         
-        mergeSelectedElements: async (projectId: number) => {
+        mergeSelectedElements: async (projectId: number, stage?: Konva.Stage) => {
           const { elements, selectedIds, selectedId, setElements, selectElement, setIsMerging } = get();
           
           // 收集所有要合并的元素 ID（包括 selectedIds 和 selectedId）
@@ -234,7 +235,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             }
             
             // 2. 合并元素（生成图片和 Blob）
-            const result = await mergeElements(elements, allSelectedIds);
+            const result = await mergeElements(elements, allSelectedIds, stage);
             
             if (!result || !result.canvasBlob) {
               throw new Error('合并失败');

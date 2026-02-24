@@ -259,7 +259,7 @@ export default function CanvasArea({
     }
     
     try {
-      await mergeSelectedElements(parseInt(finalProjectId));
+      await mergeSelectedElements(parseInt(finalProjectId), stageInstance || undefined);
       setShowMergeToolbar(false);
     } catch (error) {
       console.error('合并失败:', error);
@@ -279,7 +279,7 @@ export default function CanvasArea({
     }
     
     try {
-      const result = await mergeElements(elements, allSelectedIds);
+      const result = await mergeElements(elements, allSelectedIds, stageInstance || undefined);
       if (result && result.thumbnailSrc) {
         const link = document.createElement('a');
         link.download = `merged_${Date.now()}.png`;

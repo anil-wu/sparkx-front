@@ -12,11 +12,13 @@ export interface MergeResult {
  * 合并多个元素为一张图片
  * @param elements 所有元素列表
  * @param selectedIds 选中的元素 ID 列表
+ * @param stage 可选的 Konva Stage 实例，如果提供，将直接从 Stage 中克隆节点以保证效果一致
  * @returns 合并结果
  */
 export async function mergeElements(
   elements: BaseElement<any>[],
-  selectedIds: string[]
+  selectedIds: string[],
+  stage?: Konva.Stage
 ): Promise<MergeResult | null> {
   const selectedElements = elements.filter(el => selectedIds.includes(el.id));
   
@@ -24,29 +26,66 @@ export async function mergeElements(
     return null;
   }
   
-  // 1. 计算包围盒
-  const boundingBox = calculateBoundingBox(selectedElements);
+  // 1. 获取所有选中的节点并计算精确的包围盒
+  let nodes: Konva.Node[] = [];
+  let boundingBox: { x: number; y: number; width: number; height: number };
+
+  if (stage) {
+    // 如果提供了 stage，直接获取现有节点并计算精确包围盒
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    for (const id of selectedIds) {
+      const node = stage.findOne('#' + id);
+      if (node) {
+        const cloned = node.clone();
+        nodes.push(cloned);
+        
+        // 使用 getClientRect 获取包含描边、旋转等在内的精确包围盒
+        const rect = node.getClientRect();
+        minX = Math.min(minX, rect.x);
+        minY = Math.min(minY, rect.y);
+        maxX = Math.max(maxX, rect.x + rect.width);
+        maxY = Math.max(maxY, rect.y + rect.height);
+      }
+    }
+    
+    boundingBox = {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
+
+    // 调整克隆节点的坐标为相对于新包围盒的坐标
+    nodes.forEach(node => {
+      node.x(node.x() - boundingBox.x);
+      node.y(node.y() - boundingBox.y);
+    });
+  } else {
+    // 如果没有提供 stage，使用基础包围盒计算和节点创建逻辑
+    boundingBox = calculateBoundingBox(selectedElements);
+    const nodePromises = selectedElements.map(el => createKonvaNode(el, boundingBox));
+    const createdNodes = await Promise.all(nodePromises);
+    nodes = createdNodes.filter((n): n is Konva.Node => n !== null);
+  }
   
-  // 2. 创建临时 Konva stage (需要 container 避免报错)
+  if (nodes.length === 0) {
+    return null;
+  }
+  
+  // 2. 创建临时 Konva stage
   const container = document.createElement('div');
-  const stage = new Konva.Stage({
+  const tempStage = new Konva.Stage({
     container: container,
     width: boundingBox.width,
     height: boundingBox.height,
   });
   
   const layer = new Konva.Layer();
-  stage.add(layer);
-  
-  // 3. 将所有选中的元素添加到临时 layer
-  // 注意：如果是图片元素，需要确保图片已加载
-  const nodePromises = selectedElements.map(el => createKonvaNode(el, boundingBox));
-  const nodes = await Promise.all(nodePromises);
+  tempStage.add(layer);
   
   nodes.forEach(node => {
-    if (node) {
-      layer.add(node);
-    }
+    layer.add(node);
   });
   
   // 4. 渲染
@@ -54,18 +93,18 @@ export async function mergeElements(
   
   // 5. 获取 DataURL（用于预览和临时显示）
   const scale = 2;
-  const dataURL = stage.toDataURL({ pixelRatio: scale });
+  const dataURL = tempStage.toDataURL({ pixelRatio: scale });
   
   // 6. 转换为 Blob（用于上传）
   const canvasBlob = await new Promise<Blob | null>((resolve) => {
-    const canvas = stage.toCanvas({ pixelRatio: scale });
+    const canvas = tempStage.toCanvas({ pixelRatio: scale });
     canvas.toBlob((blob) => {
       resolve(blob);
     }, 'image/png', 1.0);
   });
   
   // 7. 销毁临时 stage
-  stage.destroy();
+  tempStage.destroy();
   
   // 8. 创建合并后的图片元素
   const mergedElement = new ImageElement({
@@ -121,6 +160,17 @@ export function calculateBoundingBox(elements: BaseElement<any>[]): {
 }
 
 /**
+ * 获取虚线样式
+ */
+function getDash(strokeStyle?: string) {
+  switch (strokeStyle) {
+    case 'dashed': return [10, 5];
+    case 'dotted': return [2, 2];
+    default: return undefined;
+  }
+}
+
+/**
  * 根据元素类型创建对应的 Konva 节点
  */
 async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y: number }): Promise<Konva.Node | null> {
@@ -139,6 +189,7 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
         fill: shapeEl.color,
         stroke: shapeEl.stroke,
         strokeWidth: shapeEl.strokeWidth,
+        dash: getDash(shapeEl.strokeStyle),
         cornerRadius: shapeEl.cornerRadius,
         rotation: el.rotation,
       });
@@ -154,6 +205,7 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
         fill: shapeEl.color,
         stroke: shapeEl.stroke,
         strokeWidth: shapeEl.strokeWidth,
+        dash: getDash(shapeEl.strokeStyle),
         rotation: el.rotation,
       });
     }
@@ -167,6 +219,7 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
         fill: shapeEl.color,
         stroke: shapeEl.stroke,
         strokeWidth: shapeEl.strokeWidth,
+        dash: getDash(shapeEl.strokeStyle),
         rotation: el.rotation,
         sceneFunc: (context, shape) => {
           context.beginPath();
@@ -195,6 +248,7 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
         fill: shapeEl.color,
         stroke: shapeEl.stroke,
         strokeWidth: shapeEl.strokeWidth,
+        dash: getDash(shapeEl.strokeStyle),
         rotation: el.rotation,
       });
       return star;
@@ -211,8 +265,13 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
         fontSize: textEl.fontSize,
         fontFamily: textEl.fontFamily,
         fill: textEl.textColor,
+        stroke: textEl.textStroke,
+        strokeWidth: textEl.textStrokeWidth,
         fontStyle: textEl.fontStyle,
         align: textEl.align,
+        lineHeight: textEl.lineHeight,
+        letterSpacing: textEl.letterSpacing,
+        textDecoration: textEl.textDecoration,
         rotation: el.rotation,
       });
     }
@@ -261,7 +320,7 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
         fill: drawEl.fill,
         lineCap: 'round',
         lineJoin: 'round',
-        tension: 0.5,
+        tension: el.type === 'pencil' ? 0.5 : 0, // pencil has tension, pen usually doesn't or it's straight lines
         rotation: el.rotation,
       });
       
@@ -285,27 +344,131 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
       });
       
       // 背景形状
-      const bg = new Konva.Rect({
-        width: el.width,
-        height: el.height,
-        fill: textShapeEl.color,
-        stroke: textShapeEl.stroke,
-        strokeWidth: textShapeEl.strokeWidth,
-        cornerRadius: textShapeEl.cornerRadius,
-      });
+      let bg: Konva.Node;
+      const dash = getDash(textShapeEl.strokeStyle);
+
+      if (el.type === 'chat-bubble') {
+        const r = textShapeEl.cornerRadius || 20;
+        const w = el.width;
+        const h = el.height;
+        const tailHeight = 15;
+        const topOffset = tailHeight;
+        const bh = h - tailHeight - topOffset;
+        const safeR = Math.min(r, w / 2, bh / 2);
+        
+        // Tail parameters
+        const t1 = 45; 
+        const t2 = 15; 
+        const t3 = 25; 
+
+        bg = new Konva.Path({
+          data: `
+            M ${safeR} ${topOffset}
+            L ${w - safeR} ${topOffset}
+            Q ${w} ${topOffset} ${w} ${safeR + topOffset}
+            L ${w} ${bh + topOffset - safeR}
+            Q ${w} ${bh + topOffset} ${w - safeR} ${bh + topOffset}
+            L ${t1} ${bh + topOffset}
+            L ${t2} ${h}
+            L ${t3} ${bh + topOffset}
+            L ${safeR} ${bh + topOffset}
+            Q 0 ${bh + topOffset} 0 ${bh + topOffset - safeR}
+            L 0 ${safeR + topOffset}
+            Q 0 ${topOffset} ${safeR} ${topOffset}
+            Z
+          `,
+          fill: textShapeEl.color,
+          stroke: textShapeEl.stroke,
+          strokeWidth: textShapeEl.strokeWidth,
+          dash: dash,
+          lineJoin: 'round',
+          lineCap: 'round',
+        });
+      } else if (el.type === 'arrow-left' || el.type === 'arrow-right') {
+        const headLength = el.width * 0.4;
+        const tailLength = el.width - headLength;
+        const tailThickness = el.height * 0.5;
+        const headSpan = el.height * 0.9;
+        const cY = el.height / 2;
+        const tailTop = cY - tailThickness / 2;
+        const tailBottom = cY + tailThickness / 2;
+        const headTop = cY - headSpan / 2;
+        const headBottom = cY + headSpan / 2;
+
+        let pathData = '';
+        if (el.type === 'arrow-left') {
+          pathData = `
+            M ${el.width} ${tailTop}
+            L ${headLength} ${tailTop}
+            L ${headLength} ${headTop}
+            L 0 ${cY}
+            L ${headLength} ${headBottom}
+            L ${headLength} ${tailBottom}
+            L ${el.width} ${tailBottom}
+            Z
+          `;
+        } else {
+          pathData = `
+            M 0 ${tailTop}
+            L ${tailLength} ${tailTop}
+            L ${tailLength} ${headTop}
+            L ${el.width} ${cY}
+            L ${tailLength} ${headBottom}
+            L ${tailLength} ${tailBottom}
+            L 0 ${tailBottom}
+            Z
+          `;
+        }
+
+        bg = new Konva.Path({
+          data: pathData,
+          fill: textShapeEl.color,
+          stroke: textShapeEl.stroke || textShapeEl.color,
+          strokeWidth: textShapeEl.strokeWidth !== undefined ? textShapeEl.strokeWidth : 8,
+          dash: dash,
+          lineJoin: 'round',
+          lineCap: 'round',
+        });
+      } else if (el.type === 'circle-text') {
+        bg = new Konva.Ellipse({
+          x: el.width / 2,
+          y: el.height / 2,
+          radiusX: el.width / 2,
+          radiusY: el.height / 2,
+          fill: textShapeEl.color,
+          stroke: textShapeEl.stroke,
+          strokeWidth: textShapeEl.strokeWidth,
+          dash: dash,
+        });
+      } else {
+        // rectangle-text
+        bg = new Konva.Rect({
+          width: el.width,
+          height: el.height,
+          fill: textShapeEl.color,
+          stroke: textShapeEl.stroke,
+          strokeWidth: textShapeEl.strokeWidth,
+          cornerRadius: textShapeEl.cornerRadius,
+          dash: dash,
+        });
+      }
       
       // 文本
       const text = new Konva.Text({
-        x: 5,
-        y: 5,
-        width: el.width - 10,
-        height: el.height - 10,
+        width: el.width,
+        height: el.height,
         text: textShapeEl.text,
         fontSize: textShapeEl.fontSize,
         fontFamily: textShapeEl.fontFamily,
         fill: textShapeEl.textColor,
+        stroke: textShapeEl.textStroke,
+        strokeWidth: textShapeEl.textStrokeWidth,
         fontStyle: textShapeEl.fontStyle,
         align: textShapeEl.align,
+        verticalAlign: 'middle',
+        lineHeight: textShapeEl.lineHeight,
+        letterSpacing: textShapeEl.letterSpacing,
+        textDecoration: textShapeEl.textDecoration,
       });
       
       group.add(bg);
