@@ -97,35 +97,41 @@ const ReasoningPartComponent: React.FC<ReasoningPartComponentProps> = ({ part, i
 interface ToolPartComponentProps {
   part: ToolPart;
   idx: number;
+  hideHeader?: boolean;
+  defaultCollapsed?: boolean;
 }
 
-const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
+const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx, hideHeader = false, defaultCollapsed = true }) => {
   const state = part.state;
   const toolName = part.tool || 'Unknown';
   const isCompleted = state?.status === 'completed' || state?.status === 'failed' || state?.status === 'error';
-  const [isCollapsed, setIsCollapsed] = useState(true); // 默认收缩
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
+
+  const effectiveCollapsed = hideHeader ? false : isCollapsed;
   
   return (
-    <div key={idx} className="p-3 bg-white/50 rounded-lg border border-amber-200">
-      <div 
-        className="flex items-center gap-2 mb-2 text-xs font-medium text-amber-700 cursor-pointer select-none hover:bg-amber-50 rounded px-2 py-1 transition-colors"
-        onClick={toggleCollapse}
-      >
-        <Zap size={12} />
-        <span>工具：{toolName}</span>
-        {isCompleted && (
-          <ChevronLeft 
-            size={12} 
-            className={`ml-auto transition-transform ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
-          />
-        )}
-      </div>
+    <div key={idx} className={hideHeader ? '' : "p-3 bg-white/50 rounded-lg border border-amber-200"}>
+      {!hideHeader && (
+        <div 
+          className="flex items-center gap-2 mb-2 text-xs font-medium text-amber-700 cursor-pointer select-none hover:bg-amber-50 rounded px-2 py-1 transition-colors"
+          onClick={toggleCollapse}
+        >
+          <Zap size={12} />
+          <span>工具：{toolName}</span>
+          {isCompleted && (
+            <ChevronLeft 
+              size={12} 
+              className={`ml-auto transition-transform ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} 
+            />
+          )}
+        </div>
+      )}
       
-      {!isCollapsed && (
+      {!effectiveCollapsed && (
         <>
           {state?.status === 'pending' && (
             <div className="text-xs text-amber-600">等待执行...</div>
@@ -170,7 +176,7 @@ const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
         </>
       )}
       
-      {isCollapsed && isCompleted && (
+      {effectiveCollapsed && isCompleted && !hideHeader && (
         <div className="text-xs">
           {state?.status === 'completed' && (
             <span className="text-green-600">✓ 已完成</span>
@@ -550,6 +556,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [isTodoExpanded, setIsTodoExpanded] = useState(false);
+  const [expandedToolResults, setExpandedToolResults] = useState<Record<string, boolean>>({});
   const [inputValue, setInputValue] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1521,6 +1528,9 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
               };
 
               const messageType = getMessageTypeFromParts();
+              const toolPart = msg.parts?.find(p => p.type === 'tool') as ToolPart | undefined;
+              const toolName = toolPart?.tool || 'Unknown';
+              const isToolResultExpanded = !!expandedToolResults[msg.id];
               
               const getMessageStyles = () => {
                 if (msg.role === 'user') {
@@ -1572,6 +1582,56 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
                     return '';
                 }
               };
+
+              if (msg.role === 'assistant' && messageType === 'tool_result') {
+                return (
+                  <div key={msg.id} className="flex flex-col items-start">
+                    <div className="w-[300px]">
+                      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-green-50 text-green-800 border border-green-100">
+                        <Check size={12} className="text-green-600 shrink-0" />
+                        <span className="text-xs font-medium truncate">{toolName}</span>
+                        <button
+                          type="button"
+                          className="ml-auto p-0.5 rounded-md hover:bg-green-100/70 transition-colors"
+                          onClick={() =>
+                            setExpandedToolResults(prev => ({ ...prev, [msg.id]: !prev[msg.id] }))
+                          }
+                          aria-label={isToolResultExpanded ? '收起工具结果' : '展开工具结果'}
+                        >
+                          <ChevronLeft
+                            size={12}
+                            className={`transition-transform ${isToolResultExpanded ? 'rotate-0' : '-rotate-90'}`}
+                          />
+                        </button>
+                      </div>
+
+                      {isToolResultExpanded && (
+                        <div className="mt-2 rounded-xl border border-gray-100 bg-white p-3">
+                          <div className="space-y-3 text-sm text-gray-800 leading-relaxed">
+                            {(msg.parts || []).map((part, idx) => {
+                              if (part.type === 'tool') {
+                                return (
+                                  <ToolPartComponent
+                                    key={idx}
+                                    part={part}
+                                    idx={idx}
+                                    hideHeader
+                                    defaultCollapsed={false}
+                                  />
+                                );
+                              }
+                              return renderPart(part, idx, { onReplyQuestion: handleReplyQuestion, onRejectQuestion: handleRejectQuestion });
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-400 mt-1">
+                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                );
+              }
 
               return (
                 <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
