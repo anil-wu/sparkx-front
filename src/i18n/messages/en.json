@@ -248,7 +248,17 @@
     "settings_failed": "Failed to save settings",
     "provider_placeholder": "e.g. openrouter",
     "model_placeholder": "e.g. qwen/qwen-max",
-    "api_key_placeholder": "Enter API key"
+    "api_key_placeholder": "Enter API key",
+    "history": "History",
+    "history_loading": "Loading...",
+    "history_refresh": "Refresh",
+    "history_empty": "No chat history",
+    "history_load_failed": "Failed to load history",
+    "history_session_load_failed": "Failed to load this chat",
+    "history_current": "Current",
+    "history_delete": "Delete session",
+    "history_delete_confirm": "Delete this session? This cannot be undone.",
+    "history_delete_failed": "Failed to delete session"
   },
   "editor": {
     "properties": "Properties",

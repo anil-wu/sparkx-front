@@ -248,7 +248,17 @@
     "settings_failed": "保存设置失败",
     "provider_placeholder": "例如: openrouter",
     "model_placeholder": "例如: qwen/qwen-max",
-    "api_key_placeholder": "请输入 API 密钥"
+    "api_key_placeholder": "请输入 API 密钥",
+    "history": "历史对话",
+    "history_loading": "加载中...",
+    "history_refresh": "刷新",
+    "history_empty": "暂无历史对话",
+    "history_load_failed": "加载历史对话失败",
+    "history_session_load_failed": "加载该对话失败",
+    "history_current": "当前",
+    "history_delete": "删除会话",
+    "history_delete_confirm": "确定要删除这个会话吗？此操作无法撤销。",
+    "history_delete_failed": "删除会话失败"
   },
   "editor": {
     "properties": "属性调整",

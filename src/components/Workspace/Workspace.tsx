@@ -14,6 +14,7 @@ import { useI18n } from "@/i18n/client";
 
 type WorkspaceProps = {
   projectId?: string;
+  userLabel?: string;
   initialLeftPanel?: 'hierarchy' | 'project';
   initialViewMode?: 'resource' | 'preview' | 'code' | 'intro';
   heightClassName?: string;

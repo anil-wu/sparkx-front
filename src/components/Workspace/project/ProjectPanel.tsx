@@ -30,7 +30,7 @@ interface FileNode {
   isOpen?: boolean;
 }
 
-export default function ProjectPanel({ isCollapsed, toggleSidebar }: ProjectPanelProps) {
+export default function ProjectPanel({ isCollapsed, toggleSidebar, onFileSelect }: ProjectPanelProps) {
   const { t } = useI18n();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');

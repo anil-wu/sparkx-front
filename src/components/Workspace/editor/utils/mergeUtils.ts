@@ -85,7 +85,7 @@ export async function mergeElements(
   tempStage.add(layer);
   
   nodes.forEach(node => {
-    layer.add(node);
+    layer.add(node as any);
   });
   
   // 4. 渲染
@@ -344,7 +344,7 @@ async function createKonvaNode(el: BaseElement<any>, boundingBox: { x: number; y
       });
       
       // 背景形状
-      let bg: Konva.Node;
+      let bg: Konva.Shape;
       const dash = getDash(textShapeEl.strokeStyle);
 
       if (el.type === 'chat-bubble') {

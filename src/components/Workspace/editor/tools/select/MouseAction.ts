@@ -8,7 +8,6 @@ import { BaseElement } from '../../../types/BaseElement';
 export class MouseAction extends BaseMouseAction {
   type: ToolType = 'select';
   
-  private startPos: { x: number; y: number } | null = null;
   private isDraggingSelection = false;
   private lastDragPos: { x: number; y: number } | null = null;
   private hasMovedDuringDrag = false;
@@ -19,7 +18,9 @@ export class MouseAction extends BaseMouseAction {
     this.hasMovedDuringDrag = false;
     setShouldSuppressContextMenu(false);
     const stage = e.target.getStage();
+    if (!stage) return;
     const pointerPos = stage.getPointerPosition();
+    if (!pointerPos) return;
     const scale = stage.scaleX();
     const stagePos = stage.position();
     const pos = {
@@ -143,9 +144,11 @@ export class MouseAction extends BaseMouseAction {
   onMouseMove(e: Konva.KonvaEventObject<MouseEvent>, context: ToolContext): void {
     const { isSelecting, selectionBox, setSelectionBox, isDraggingSelection, dragSelectedElements } = useWorkspaceStore.getState();
     
-    if (isSelecting && this.startPos) {
+    if (isSelecting) {
       const stage = e.target.getStage();
+      if (!stage) return;
       const pointerPos = stage.getPointerPosition();
+      if (!pointerPos) return;
       const scale = stage.scaleX();
       const stagePos = stage.position();
       const currentPos = {
@@ -164,7 +167,9 @@ export class MouseAction extends BaseMouseAction {
       const { setShouldSuppressContextMenu, dragStartPos } = useWorkspaceStore.getState();
       // 拖动选中的多个元素
       const stage = e.target.getStage();
+      if (!stage) return;
       const currentPos = stage.getPointerPosition();
+      if (!currentPos) return;
       
       if (this.lastDragPos && dragStartPos) {
         const dx = currentPos.x - this.lastDragPos.x;
@@ -218,7 +223,6 @@ export class MouseAction extends BaseMouseAction {
       // 结束框选
       setIsSelecting(false);
       setSelectionBox(null);
-      this.startPos = null;
     }
 
     // 结束拖动
@@ -236,7 +240,6 @@ export class MouseAction extends BaseMouseAction {
     if (isSelecting) {
       setIsSelecting(false);
       setSelectionBox(null);
-      this.startPos = null;
     }
     // 如果正在拖动时离开画布，也清除初始位置
     if (this.isDraggingSelection) {

@@ -44,6 +44,8 @@ export default function UserNavigation({
     coverImage?: string;
     coverFile?: File;
   }) => {
+    if (isCreating) return;
+    setIsCreating(true);
     try {
       const project = await createProject({
         name: input?.name || t("projects.untitled_project"),
@@ -64,6 +66,8 @@ export default function UserNavigation({
       router.push(`/projects/${project.id}/edit`);
     } catch (error) {
       console.error("Failed to create project:", error);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -148,9 +152,12 @@ export default function UserNavigation({
       </div>
 
       <CreateProjectDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        onCreate={handleCreateProject}
+        isOpen={isCreateDialogOpen}
+        isSubmitting={isCreating}
+        onCancel={() => {
+          setIsCreateDialogOpen(false);
+        }}
+        onSubmit={(input) => handleCreateProject(input)}
       />
     </>
   );

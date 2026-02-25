@@ -69,6 +69,8 @@ export class TextElement extends BaseElement<TextState> {
   get fontSize() { return this.state.fontSize; }
   get fontFamily() { return this.state.fontFamily; }
   get textColor() { return this.state.textColor; }
+  get textStroke() { return this.state.textStroke; }
+  get textStrokeWidth() { return this.state.textStrokeWidth; }
   get fontStyle() { return this.state.fontStyle; }
   get align() { return this.state.align; }
   get lineHeight() { return this.state.lineHeight; }

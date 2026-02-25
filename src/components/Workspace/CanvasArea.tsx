@@ -312,15 +312,14 @@ export default function CanvasArea({
           // 将后端图层数据转换为前端元素
           const loadedElements: BaseElement<any>[] = [];
           
-          for (const layer of canvasData.layers) {
+          const sortedLayers = [...canvasData.layers].sort((a, b) => a.zIndex - b.zIndex);
+
+          for (const layer of sortedLayers) {
             const element = createElementFromLayer(layer);
             if (element) {
               loadedElements.push(element);
             }
           }
-          
-          // 按 zIndex 排序
-          loadedElements.sort((a, b) => a.zIndex - b.zIndex);
           
           // 批量添加到 store（会替换之前的元素）
           const { setElements } = useWorkspaceStore.getState();
@@ -484,6 +483,9 @@ export default function CanvasArea({
     }
 
     if (!selectedElement) {
+      return null;
+    }
+    if (!selectedId) {
       return null;
     }
 

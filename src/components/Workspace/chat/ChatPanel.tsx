@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircle, History, Share2, Copy, Minimize2, Paperclip, AtSign, Lightbulb, Zap, Globe, Box, ArrowUp, ChevronLeft, Sparkles, Settings, X, Check, AlertCircle } from 'lucide-react';
+import { PlusCircle, History, Share2, Copy, Minimize2, Paperclip, AtSign, Lightbulb, Zap, Globe, Box, ArrowUp, ChevronLeft, Sparkles, Settings, X, Check, AlertCircle, Trash2 } from 'lucide-react';
 import { useI18n } from '@/i18n/client';
 import { createOpencodeClient } from "@opencode-ai/sdk";
 
@@ -101,7 +101,7 @@ interface ToolPartComponentProps {
 const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
   const state = part.state;
   const toolName = part.tool || 'Unknown';
-  const isCompleted = state?.status === 'completed' || state?.status === 'failed';
+  const isCompleted = state?.status === 'completed' || state?.status === 'failed' || state?.status === 'error';
   const [isCollapsed, setIsCollapsed] = useState(true); // 默认收缩
   
   const toggleCollapse = () => {
@@ -130,7 +130,7 @@ const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
             <div className="text-xs text-amber-600">等待执行...</div>
           )}
           
-          {state?.status === 'executing' && (
+          {(state?.status === 'executing' || state?.status === 'running') && (
             <div className="text-xs text-amber-600">
               正在执行{state.title ? `: ${state.title}` : '...'}
             </div>
@@ -158,7 +158,7 @@ const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
             </div>
           )}
           
-          {state?.status === 'failed' && (
+          {(state?.status === 'failed' || state?.status === 'error') && (
             <div className="text-xs text-red-600">
               <div className="font-medium mb-1">执行失败</div>
               <pre className="mt-1 p-2 bg-red-50 rounded text-[10px] overflow-auto max-h-32">
@@ -174,7 +174,7 @@ const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
           {state?.status === 'completed' && (
             <span className="text-green-600">✓ 已完成</span>
           )}
-          {state?.status === 'failed' && (
+          {(state?.status === 'failed' || state?.status === 'error') && (
             <span className="text-red-600">✗ 已失败</span>
           )}
         </div>
@@ -204,7 +204,7 @@ interface ToolPart extends BasePart {
   type: 'tool';
   tool: string;
   state?: {
-    status: 'pending' | 'executing' | 'completed' | 'failed';
+    status: 'pending' | 'executing' | 'running' | 'completed' | 'failed' | 'error';
     title?: string;
     input?: object;
     output?: string | object;
@@ -342,9 +342,16 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsFeedback, setSettingsFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
+
+  const [showHistory, setShowHistory] = useState(false);
+  const [historySessions, setHistorySessions] = useState<Array<{ id: string; title: string; time?: { created: number; updated: number } }>>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   
   // SSE 订阅状态跟踪
   const isSubscribedRef = useRef(false);
+  const isInitializingRef = useRef(false);
 
   // 检查服务健康状态
   const checkHealth = async () => {
@@ -353,7 +360,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
       const online = !!response.data;
       
       // 如果服务上线了且当前没有会话 ID，自动尝试初始化
-      if (online && !sessionId && !isLoading) {
+      if (online && !sessionId && !isLoading && !isInitializingRef.current) {
         console.log("Service is online, auto-initializing session...");
         initSession();
       }
@@ -400,6 +407,170 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     }
   }, [showSettings]);
 
+  const formatHistoryTime = (timestamp: number | undefined) => {
+    if (!timestamp) return '';
+    try {
+      return new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(timestamp));
+    } catch {
+      return new Date(timestamp).toLocaleString();
+    }
+  };
+
+  const normalizePartForUI = (rawPart: any): Part | null => {
+    if (!rawPart?.type) return null;
+
+    if (rawPart.type === 'text') {
+      return {
+        id: rawPart.id,
+        messageID: rawPart.messageID,
+        sessionID: rawPart.sessionID,
+        type: 'text',
+        text: rawPart.text || ''
+      };
+    }
+
+    if (rawPart.type === 'reasoning') {
+      return {
+        id: rawPart.id,
+        messageID: rawPart.messageID,
+        sessionID: rawPart.sessionID,
+        type: 'reasoning',
+        text: rawPart.text || '',
+        time: rawPart.time
+      };
+    }
+
+    if (rawPart.type === 'file') {
+      return {
+        id: rawPart.id,
+        messageID: rawPart.messageID,
+        sessionID: rawPart.sessionID,
+        type: 'file',
+        url: rawPart.url,
+        filename: rawPart.filename,
+        mime: rawPart.mime
+      };
+    }
+
+    if (rawPart.type === 'tool') {
+      const state = rawPart.state || {};
+      const status = state.status === 'running' ? 'executing' : state.status === 'error' ? 'failed' : state.status;
+      const attachments = Array.isArray(state.attachments)
+        ? state.attachments
+            .filter((a: any) => a && a.type === 'file')
+            .map((a: any) => ({ filename: a.filename, url: a.url }))
+        : undefined;
+
+      return {
+        id: rawPart.id,
+        messageID: rawPart.messageID,
+        sessionID: rawPart.sessionID,
+        type: 'tool',
+        tool: rawPart.tool,
+        state: {
+          status,
+          title: state.title,
+          input: state.input,
+          output: state.output,
+          error: state.error,
+          attachments,
+          time: state.time
+        }
+      } as ToolPart;
+    }
+
+    return null;
+  };
+
+  const fetchSessionHistory = async () => {
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const response = await client.session.list({});
+      const sessions = (response.data || []) as Array<{ id: string; title: string; time?: { created: number; updated: number } }>;
+      const sorted = [...sessions].sort((a, b) => (b.time?.updated || 0) - (a.time?.updated || 0));
+      setHistorySessions(sorted.slice(0, 50));
+    } catch (err) {
+      console.error("Failed to fetch session history:", err);
+      setHistoryError(t('chat.history_load_failed'));
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  const loadHistorySession = async (targetSessionId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await client.session.messages({
+        path: { id: targetSessionId },
+        query: { limit: 200 }
+      });
+
+      const items = (response.data || []) as Array<{ info: any; parts: any[] }>;
+      const nextMessages: ChatMessage[] = items
+        .map(({ info, parts }) => {
+          const normalizedParts = (parts || []).map(normalizePartForUI).filter(Boolean) as Part[];
+          const content = normalizedParts
+            .map(p => {
+              if (p.type === 'text' || p.type === 'reasoning') return p.text;
+              return '';
+            })
+            .join('');
+          return {
+            id: info.id,
+            role: info.role,
+            content,
+            timestamp: new Date(info.time?.created || Date.now()),
+            parts: normalizedParts,
+            info
+          };
+        })
+        .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+      setSessionId(targetSessionId);
+      setMessages(nextMessages);
+      setShowHistory(false);
+    } catch (err) {
+      console.error("Failed to load history session:", err);
+      setError(t('chat.history_session_load_failed'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteHistorySession = async (targetSessionId: string) => {
+    const ok = confirm(t('chat.history_delete_confirm'));
+    if (!ok) return;
+
+    setDeletingSessionId(targetSessionId);
+    setHistoryError(null);
+    try {
+      await client.session.delete({ path: { id: targetSessionId } });
+
+      setHistorySessions(prev => prev.filter(s => s.id !== targetSessionId));
+
+      if (targetSessionId === sessionId) {
+        setMessages([]);
+        setSessionId(null);
+        await initSession();
+      }
+
+      await fetchSessionHistory();
+    } catch (err) {
+      console.error("Failed to delete history session:", err);
+      setHistoryError(t('chat.history_delete_failed'));
+    } finally {
+      setDeletingSessionId(null);
+    }
+  };
+
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     setSettingsFeedback(null);
@@ -435,9 +606,18 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
 
   // 初始化或重置会话
   const initSession = async () => {
+    // 防止重复初始化
+    if (isInitializingRef.current) {
+      console.log("initSession already in progress, skipping...");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
+    isInitializingRef.current = true;
     try {
+
+      console.log("initSession------------------------------------------>>");
       const response = await client.session.create({});
       if (response.data?.id) {
         const newSessionId = response.data.id;
@@ -468,6 +648,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
       setError(t('chat.error_session_failed'));
     } finally {
       setIsLoading(false);
+      isInitializingRef.current = false;
     }
   };
 
@@ -499,6 +680,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     
     let isCancelled = false;
     isSubscribedRef.current = true;
+    let stream: AsyncGenerator<any, any, any> | null = null;
     
     const setupSSE = async () => {
       try {
@@ -507,6 +689,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
         if (isCancelled) return;
         
         console.log("SSE subscription established for session:", sessionId);
+        stream = events.stream as any;
         
         for await (const event of events.stream) {
           if (isCancelled) break;
@@ -516,41 +699,70 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
           // 消息部分增量更新（流式输出）
           // 只更新已存在的消息和 Part，不创建新消息
           if (eventType === 'message.part.delta') {
-            const { delta, field, messageID, partID, sessionID } = event.properties as any;
+            const { delta, field, messageID, partID, sessionID: eventSessionID } = event.properties as any;
             
             if (!delta || !messageID || !partID || field !== 'text') return;
+            if (eventSessionID !== sessionId) return;
             
             setMessages(prev => {
               const existingMsgIndex = prev.findIndex(m => m.id === messageID);
-              
-              if (existingMsgIndex >= 0) {
-                // 消息已存在，增量更新
-                const updatedMsg = { ...prev[existingMsgIndex] };
-                if (!updatedMsg.parts) updatedMsg.parts = [];
-                
-                const partIndex = updatedMsg.parts.findIndex(p => p.id === partID);
-                
-                if (partIndex >= 0) {
-                  // Part 已存在，追加文本
-                  const part = updatedMsg.parts[partIndex];
-                  if (part.type === 'text' || part.type === 'reasoning') {
-                    part.text = (part.text || '') + delta;
-                  }
-                  
-                  // 更新消息内容
-                  updatedMsg.content = updatedMsg.parts.map(p => {
-                    if (p.type === 'text' || p.type === 'reasoning') return p.text;
-                    return '';
-                  }).join('');
-                }
-                
-                const newMessages = [...prev];
-                newMessages[existingMsgIndex] = updatedMsg;
-                return newMessages;
+
+              const baseMsg: ChatMessage =
+                existingMsgIndex >= 0
+                  ? prev[existingMsgIndex]
+                  : {
+                      id: messageID,
+                      role: 'assistant',
+                      content: '',
+                      timestamp: new Date(),
+                      parts: [],
+                      info: { sessionID: eventSessionID }
+                    };
+
+              const prevParts = baseMsg.parts ?? [];
+              const partIndex = prevParts.findIndex(p => p.id === partID);
+
+              let nextParts: Part[];
+              if (partIndex >= 0) {
+                const existingPart = prevParts[partIndex];
+                if (existingPart.type !== 'text' && existingPart.type !== 'reasoning') return prev;
+
+                const updatedPart = {
+                  ...existingPart,
+                  text: (existingPart.text || '') + delta
+                } as Part;
+
+                nextParts = [...prevParts];
+                nextParts[partIndex] = updatedPart;
+              } else {
+                nextParts = [
+                  ...prevParts,
+                  {
+                    id: partID,
+                    messageID,
+                    sessionID: eventSessionID,
+                    type: 'text',
+                    text: delta
+                  } as TextPart
+                ];
               }
-              
-              // 消息不存在，忽略（应该先有 message.updated 创建消息）
-              return prev;
+
+              const nextContent = nextParts
+                .map(p => {
+                  if (p.type === 'text' || p.type === 'reasoning') return p.text;
+                  return '';
+                })
+                .join('');
+
+              const nextMsg: ChatMessage = { ...baseMsg, parts: nextParts, content: nextContent };
+
+              if (existingMsgIndex >= 0) {
+                const nextMessages = [...prev];
+                nextMessages[existingMsgIndex] = nextMsg;
+                return nextMessages;
+              }
+
+              return [...prev, nextMsg];
             });
           }
           
@@ -560,45 +772,57 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
             const { part } = event.properties as { part: Part };
             
             if (!part) return;
+            if ((part as any).sessionID !== sessionId) return;
             
             setMessages(prev => {
-              const existingMsgIndex = prev.findIndex(m => m.id === part.messageID);
-              
-              if (existingMsgIndex >= 0) {
-                // 消息已存在，更新或添加 Part
-                const updatedMsg = { ...prev[existingMsgIndex] };
-                if (!updatedMsg.parts) updatedMsg.parts = [];
-                
-                const partIndex = updatedMsg.parts.findIndex(p => p.id === part.id);
-                
-                if (partIndex >= 0) {
-                  // Part 已存在，替换（保留累加的 text）
-                  const existingPart = updatedMsg.parts[partIndex];
-                  if ((part.type === 'text' || part.type === 'reasoning') && existingPart.type === part.type) {
-                    (part as any).text = (existingPart as any).text || part.text;
-                  }
-                  updatedMsg.parts[partIndex] = part;
-                } else {
-                  // Part 不存在，添加
-                  updatedMsg.parts.push(part);
+              const existingMsgIndex = prev.findIndex(m => m.id === (part as any).messageID);
+
+              const baseMsg: ChatMessage =
+                existingMsgIndex >= 0
+                  ? prev[existingMsgIndex]
+                  : {
+                      id: (part as any).messageID,
+                      role: 'assistant',
+                      content: '',
+                      timestamp: new Date(),
+                      parts: [],
+                      info: { sessionID: (part as any).sessionID }
+                    };
+
+              const prevParts = baseMsg.parts ?? [];
+              const partIndex = prevParts.findIndex(p => p.id === (part as any).id);
+
+              let nextPart: Part = part;
+              if (partIndex >= 0) {
+                const existingPart = prevParts[partIndex];
+                if ((part.type === 'text' || part.type === 'reasoning') && existingPart.type === part.type) {
+                  nextPart = { ...(part as any), text: (existingPart as any).text || (part as any).text } as Part;
                 }
-                
-                // 更新消息内容
-                if (part.type === 'text' || part.type === 'reasoning') {
-                  const textPart = updatedMsg.parts.find(p => p.type === 'text' || p.type === 'reasoning');
-                  if (textPart && (textPart.type === 'text' || textPart.type === 'reasoning')) {
-                    updatedMsg.content = textPart.text || '';
-                  }
-                }
-                
-                const newMessages = [...prev];
-                newMessages[existingMsgIndex] = updatedMsg;
-                return newMessages;
-              } else {
-                // 消息不存在，忽略（应该先有 message.updated 创建消息）
-                console.warn('message.part.updated: message not found', part.messageID);
-                return prev;
               }
+
+              const nextParts = [...prevParts];
+              if (partIndex >= 0) {
+                nextParts[partIndex] = nextPart;
+              } else {
+                nextParts.push(nextPart);
+              }
+
+              const nextContent = nextParts
+                .map(p => {
+                  if (p.type === 'text' || p.type === 'reasoning') return (p as any).text || '';
+                  return '';
+                })
+                .join('');
+
+              const nextMsg: ChatMessage = { ...baseMsg, parts: nextParts, content: nextContent };
+
+              if (existingMsgIndex >= 0) {
+                const nextMessages = [...prev];
+                nextMessages[existingMsgIndex] = nextMsg;
+                return nextMessages;
+              }
+
+              return [...prev, nextMsg];
             });
           }
           
@@ -606,6 +830,8 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
           // 负责创建或更新消息（包括用户消息和助手消息）
           else if (eventType === 'message.updated') {
             const { info } = event.properties as { info: MessageInfo };
+
+            if (info.sessionID !== sessionId) return;
             
             setMessages(prev => {
               const msgIndex = prev.findIndex(m => m.id === info.id);
@@ -613,6 +839,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
                 // 消息已存在，更新信息
                 const updatedMsg = { ...prev[msgIndex] };
                 updatedMsg.info = { ...updatedMsg.info, ...info };
+                updatedMsg.timestamp = new Date(info.time.created);
                 
                 // 如果有错误信息，更新内容
                 if (info.error) {
@@ -638,7 +865,8 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
           
           // 会话状态更新
           else if (eventType === 'session.status') {
-            const { status } = event.properties as { status: { type: 'idle' | 'busy' | 'retry'; attempt?: number; message?: string } };
+            const { status, sessionID: statusSessionID } = event.properties as any;
+            if (statusSessionID !== sessionId) return;
             
             switch (status.type) {
               case 'idle':
@@ -657,7 +885,8 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
           
           // 会话错误
           else if (eventType === 'session.error') {
-            const { error } = event.properties as { error?: any };
+            const { error, sessionID: errorSessionID } = event.properties as any;
+            if (errorSessionID && errorSessionID !== sessionId) return;
             if (error) {
               const errorMsg = typeof error === 'string' ? error : JSON.stringify(error);
               setError(`会话错误：${errorMsg}`);
@@ -706,9 +935,9 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
           }
         }
       } catch (error) {
-        if (!isCancelled) {
-          console.error('SSE error:', error);
-        }
+        if (!isCancelled) console.error('SSE error:', error);
+      } finally {
+        isSubscribedRef.current = false;
       }
     };
 
@@ -718,6 +947,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     return () => {
       console.log('Cleaning up SSE for session:', sessionId);
       isCancelled = true;
+      stream?.return?.(undefined);
       isSubscribedRef.current = false;
     };
   }, [sessionId, isOnline]);
@@ -730,6 +960,11 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     } else {
       initSession();
     }
+  };
+
+  const handleOpenHistory = async () => {
+    setShowHistory(true);
+    await fetchSessionHistory();
   };
 
   const handleSend = async () => {
@@ -808,7 +1043,13 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
           >
             <PlusCircle size={18} />
           </button>
-          <button className="hover:text-gray-900"><History size={18} /></button>
+          <button
+            onClick={handleOpenHistory}
+            className="hover:text-gray-900 transition-colors"
+            title={t('chat.history')}
+          >
+            <History size={18} />
+          </button>
           <button className="hover:text-gray-900"><Share2 size={18} /></button>
           <button className="hover:text-gray-900"><Copy size={18} /></button>
           <button onClick={togglePanel} className="hover:text-gray-900"><Minimize2 size={18} /></button>
@@ -836,7 +1077,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
                 const hasToolPart = msg.parts.some(p => p.type === 'tool');
                 if (hasToolPart) {
                   const toolPart = msg.parts.find(p => p.type === 'tool') as ToolPart | undefined;
-                  if (toolPart?.state?.status === 'failed') return 'error';
+                  if (toolPart?.state?.status === 'failed' || (toolPart as any)?.state?.status === 'error') return 'error';
                   if (toolPart?.state?.status === 'completed') return 'tool_result';
                   return 'tool_call';
                 }
@@ -1087,6 +1328,108 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
                 {isSavingSettings && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                 {t('chat.save_settings')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showHistory && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-[360px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                <History size={16} className="text-blue-500" />
+                {t('chat.history')}
+              </h3>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  {isHistoryLoading ? t('chat.history_loading') : `${historySessions.length}`}
+                </div>
+                <button
+                  onClick={fetchSessionHistory}
+                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                  disabled={isHistoryLoading}
+                >
+                  {t('chat.history_refresh')}
+                </button>
+              </div>
+
+              {historyError && (
+                <div className="text-xs p-2 rounded-lg bg-red-50 text-red-600 border border-red-100">
+                  {historyError}
+                </div>
+              )}
+
+              {!isHistoryLoading && historySessions.length === 0 && !historyError && (
+                <div className="text-sm text-gray-500 py-8 text-center">
+                  {t('chat.history_empty')}
+                </div>
+              )}
+
+              <div className="max-h-[360px] overflow-auto space-y-2">
+                {historySessions.map(s => (
+                  <div
+                    key={s.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (deletingSessionId) return;
+                      loadHistorySession(s.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (deletingSessionId) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        loadHistorySession(s.id);
+                      }
+                    }}
+                    className={`w-full text-left p-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+                      s.id === sessionId ? 'border-blue-200 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'
+                    } ${deletingSessionId === s.id ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">
+                          {s.title || s.id}
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-1">
+                          {formatHistoryTime(s.time?.updated || s.time?.created)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {s.id === sessionId && (
+                          <div className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                            {t('chat.history_current')}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (deletingSessionId) return;
+                            deleteHistorySession(s.id);
+                          }}
+                          disabled={!!deletingSessionId}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-400 transition-colors"
+                          title={t('chat.history_delete')}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
