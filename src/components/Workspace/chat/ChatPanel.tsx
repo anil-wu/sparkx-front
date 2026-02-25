@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircle, History, Share2, Copy, Minimize2, Paperclip, AtSign, Lightbulb, Zap, Globe, Box, ArrowUp, ChevronLeft, Sparkles, Settings, X, Check, AlertCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, History, Share2, Copy, Minimize2, Paperclip, AtSign, Lightbulb, Zap, Globe, Box, ArrowUp, ChevronLeft, Sparkles, Settings, X, Check, AlertCircle, Trash2, Pencil } from 'lucide-react';
 import { useI18n } from '@/i18n/client';
 import { createOpencodeClient } from "@opencode-ai/sdk";
+import { createOpencodeClient as createOpencodeClientV2 } from "@opencode-ai/sdk/v2/client";
 
 interface ChatPanelProps {
   isCollapsed: boolean;
@@ -183,6 +184,171 @@ const ToolPartComponent: React.FC<ToolPartComponentProps> = ({ part, idx }) => {
   );
 };
 
+interface QuestionPartComponentProps {
+  part: QuestionPart;
+  idx: number;
+  onReply: (requestID: string, answers: Array<Array<string>>) => Promise<void>;
+  onReject: (requestID: string) => Promise<void>;
+}
+
+const QuestionPartComponent: React.FC<QuestionPartComponentProps> = ({ part, idx, onReply, onReject }) => {
+  const questions = part.questions || [];
+  const [selectedLabels, setSelectedLabels] = useState<Array<Array<string>>>(() => {
+    const initial = part.state?.answers;
+    if (initial && Array.isArray(initial) && initial.length === questions.length) return initial;
+    return questions.map(() => []);
+  });
+  const [customText, setCustomText] = useState<Array<string>>(() => questions.map(() => ''));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const nextQuestions = part.questions || [];
+    setSelectedLabels(prev => {
+      if (prev.length === nextQuestions.length) return prev;
+      return nextQuestions.map((_, i) => prev[i] || []);
+    });
+    setCustomText(prev => {
+      if (prev.length === nextQuestions.length) return prev;
+      return nextQuestions.map((_, i) => prev[i] || '');
+    });
+  }, [part.questions]);
+
+  const status = part.state?.status || 'pending';
+  const isDone = status === 'replied' || status === 'rejected';
+
+  const toggleOption = (questionIndex: number, label: string) => {
+    setSelectedLabels(prev => {
+      const next = [...prev];
+      const current = new Set(next[questionIndex] || []);
+      const multiple = !!questions[questionIndex]?.multiple;
+      if (!multiple) {
+        next[questionIndex] = [label];
+        return next;
+      }
+      if (current.has(label)) current.delete(label);
+      else current.add(label);
+      next[questionIndex] = Array.from(current);
+      return next;
+    });
+  };
+
+  const buildAnswers = () =>
+    questions.map((q, i) => {
+      const base = selectedLabels[i] || [];
+      const customAllowed = q.custom !== false;
+      const custom = customAllowed ? (customText[i] || '').trim() : '';
+      if (!custom) return base;
+      if (base.includes(custom)) return base;
+      return [...base, custom];
+    });
+
+  const submit = async () => {
+    if (isSubmitting || isDone) return;
+    setIsSubmitting(true);
+    try {
+      await onReply(part.requestID, buildAnswers());
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const reject = async () => {
+    if (isSubmitting || isDone) return;
+    setIsSubmitting(true);
+    try {
+      await onReject(part.requestID);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div key={idx} className="p-3 bg-white/50 rounded-lg border border-gray-200">
+      <div className="text-xs font-medium text-gray-700 mb-2">需要你的选择</div>
+      <div className="space-y-4">
+        {questions.map((q, qi) => (
+          <div key={qi} className="space-y-2">
+            {(q.header || q.question) && (
+              <div className="text-xs font-semibold text-gray-800">
+                {q.header || q.question}
+              </div>
+            )}
+            {q.header && q.question && <div className="text-xs text-gray-600 whitespace-pre-wrap">{q.question}</div>}
+            <div className="flex flex-wrap gap-2">
+              {(q.options || []).map((opt, oi) => {
+                const isSelected = (selectedLabels[qi] || []).includes(opt.label);
+                return (
+                  <button
+                    key={oi}
+                    type="button"
+                    disabled={isSubmitting || isDone}
+                    onClick={() => toggleOption(qi, opt.label)}
+                    className={`px-2 py-1 rounded-full text-[11px] border transition-colors ${
+                      isSelected
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    } ${isSubmitting || isDone ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title={opt.description || opt.label}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {isSelected ? <Check size={12} /> : null}
+                      {opt.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {q.custom !== false && (
+              <input
+                value={customText[qi] || ''}
+                disabled={isSubmitting || isDone}
+                onChange={e => {
+                  const v = e.target.value;
+                  setCustomText(prev => {
+                    const next = [...prev];
+                    next[qi] = v;
+                    return next;
+                  });
+                }}
+                placeholder="自定义答案（可选）"
+                className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={isSubmitting || isDone}
+          className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+            isDone
+              ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-500 border-blue-500 text-white hover:bg-blue-600'
+          } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+        >
+          提交
+        </button>
+        <button
+          type="button"
+          onClick={reject}
+          disabled={isSubmitting || isDone}
+          className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+            isDone
+              ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+          } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+        >
+          跳过
+        </button>
+        {status === 'replied' && <span className="text-[11px] text-green-600 ml-auto">已提交</span>}
+        {status === 'rejected' && <span className="text-[11px] text-gray-500 ml-auto">已跳过</span>}
+      </div>
+    </div>
+  );
+};
+
 // Part 类型定义
 interface BasePart {
   id: string;
@@ -241,7 +407,34 @@ interface OutputPart extends BasePart {
   content: string;
 }
 
-type Part = TextPart | ToolPart | ReasoningPart | FilePart | OutputPart;
+interface QuestionOptionUI {
+  label: string;
+  description?: string;
+}
+
+interface QuestionInfoUI {
+  header?: string;
+  question: string;
+  options: Array<QuestionOptionUI>;
+  multiple?: boolean;
+  custom?: boolean;
+}
+
+interface QuestionPart extends BasePart {
+  type: 'question';
+  requestID: string;
+  questions: Array<QuestionInfoUI>;
+  tool?: {
+    messageID: string;
+    callID: string;
+  };
+  state?: {
+    status: 'pending' | 'replied' | 'rejected';
+    answers?: Array<Array<string>>;
+  };
+}
+
+type Part = TextPart | ToolPart | ReasoningPart | FilePart | OutputPart | QuestionPart;
 
 interface ChatMessage {
   id: string;
@@ -256,8 +449,17 @@ const client = createOpencodeClient({
   baseUrl: "http://localhost:4096",
 });
 
+const clientV2 = createOpencodeClientV2({
+  baseUrl: "http://localhost:4096",
+});
+
+interface RenderPartHandlers {
+  onReplyQuestion: (requestID: string, answers: Array<Array<string>>) => Promise<void>;
+  onRejectQuestion: (requestID: string) => Promise<void>;
+}
+
 // Part 渲染组件
-function renderPart(part: Part, idx: number) {
+function renderPart(part: Part, idx: number, handlers?: RenderPartHandlers) {
   // TextPart - 文本片段
   if (part.type === 'text') {
     return <div key={idx} className="whitespace-pre-wrap">{part.text}</div>;
@@ -319,6 +521,19 @@ function renderPart(part: Part, idx: number) {
       </div>
     );
   }
+
+  if (part.type === 'question') {
+    if (!handlers) return null;
+    return (
+      <QuestionPartComponent
+        key={idx}
+        part={part}
+        idx={idx}
+        onReply={handlers.onReplyQuestion}
+        onReject={handlers.onRejectQuestion}
+      />
+    );
+  }
   
   // 未知类型
   return null;
@@ -352,6 +567,55 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
   // SSE 订阅状态跟踪
   const isSubscribedRef = useRef(false);
   const isInitializingRef = useRef(false);
+  const autoTitledSessionsRef = useRef<Set<string>>(new Set());
+
+  const buildSessionTitle = (text: string) => {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (!normalized) return '';
+    return normalized.length > 32 ? `${normalized.slice(0, 32)}…` : normalized;
+  };
+
+  const updateSessionTitle = async (targetSessionId: string, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return false;
+    try {
+      const response = await client.session.update({
+        path: { id: targetSessionId },
+        body: { title: trimmed },
+      });
+      const nextTitle = (response as any).data?.title || trimmed;
+      setHistorySessions(prev => {
+        const idx = prev.findIndex(s => s.id === targetSessionId);
+        if (idx >= 0) {
+          return prev.map(s => (s.id === targetSessionId ? { ...s, title: nextTitle } : s));
+        }
+        return [{ id: targetSessionId, title: nextTitle }, ...prev].slice(0, 50);
+      });
+      autoTitledSessionsRef.current.add(targetSessionId);
+      return true;
+    } catch (err) {
+      console.error("Failed to update session title:", err);
+      return false;
+    }
+  };
+
+  const ensureSessionTitle = async (targetSessionId: string, seedText: string) => {
+    if (autoTitledSessionsRef.current.has(targetSessionId)) return;
+
+    const derived = buildSessionTitle(seedText);
+    if (!derived) return;
+
+    autoTitledSessionsRef.current.add(targetSessionId);
+    try {
+      const existing = await client.session.get({ path: { id: targetSessionId } });
+      const existingTitle = (existing as any).data?.title as string | undefined;
+      if (existingTitle && existingTitle.trim()) return;
+      await updateSessionTitle(targetSessionId, derived);
+    } catch (err) {
+      autoTitledSessionsRef.current.delete(targetSessionId);
+      console.error("Failed to auto title session:", err);
+    }
+  };
 
   // 检查服务健康状态
   const checkHealth = async () => {
@@ -690,6 +954,31 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
         
         console.log("SSE subscription established for session:", sessionId);
         stream = events.stream as any;
+
+        const normalizeQuestionsForUI = (rawQuestions: any): Array<QuestionInfoUI> => {
+          const list = Array.isArray(rawQuestions) ? rawQuestions : [];
+          return list
+            .map((q: any) => {
+              const question = typeof q?.question === 'string' ? q.question : '';
+              const header = typeof q?.header === 'string' ? q.header : undefined;
+              const multiple = typeof q?.multiple === 'boolean' ? q.multiple : !!q?.multiple;
+              const custom = typeof q?.custom === 'boolean' ? q.custom : q?.custom === undefined ? true : !!q?.custom;
+              const rawOptions = Array.isArray(q?.options) ? q.options : [];
+              const options: Array<QuestionOptionUI> = rawOptions
+                .map((o: any) => {
+                  if (typeof o === 'string') return { label: o };
+                  if (o && typeof o.label === 'string') {
+                    return { label: o.label, description: typeof o.description === 'string' ? o.description : undefined };
+                  }
+                  return null;
+                })
+                .filter(Boolean) as Array<QuestionOptionUI>;
+
+              if (!question) return null;
+              return { header, question, options, multiple, custom } as QuestionInfoUI;
+            })
+            .filter(Boolean) as Array<QuestionInfoUI>;
+        };
         
         for await (const event of events.stream) {
           if (isCancelled) break;
@@ -900,6 +1189,58 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
             console.log('权限请求:', perm.title || perm.type, perm);
             // TODO: 显示权限请求对话框
           }
+
+          else if (eventType === 'question.asked') {
+            const req = event.properties as any;
+            if (!req?.id || req?.sessionID !== sessionId) return;
+            const requestID: string = req.id;
+            const questions = normalizeQuestionsForUI(req.questions);
+            if (questions.length === 0) return;
+            const tool = req.tool && typeof req.tool === 'object' ? req.tool : undefined;
+
+            setMessages(prev => {
+              const existingIdx = prev.findIndex(m => m.id === requestID);
+              const message: ChatMessage = {
+                id: requestID,
+                role: 'assistant',
+                content: '',
+                timestamp: new Date(),
+                parts: [
+                  {
+                    id: `question_${requestID}`,
+                    messageID: requestID,
+                    sessionID: sessionId,
+                    type: 'question',
+                    requestID,
+                    questions,
+                    tool,
+                    state: { status: 'pending' }
+                  } as QuestionPart
+                ],
+                info: { sessionID: sessionId }
+              };
+
+              if (existingIdx >= 0) {
+                const next = [...prev];
+                next[existingIdx] = { ...prev[existingIdx], ...message };
+                return next;
+              }
+              return [...prev, message];
+            });
+          }
+
+          else if (eventType === 'question.replied') {
+            const p = event.properties as any;
+            if (p?.sessionID !== sessionId || !p?.requestID) return;
+            const answers = Array.isArray(p.answers) ? (p.answers as Array<Array<string>>) : undefined;
+            updateQuestionState(p.requestID, { status: 'replied', answers });
+          }
+
+          else if (eventType === 'question.rejected') {
+            const p = event.properties as any;
+            if (p?.sessionID !== sessionId || !p?.requestID) return;
+            updateQuestionState(p.requestID, { status: 'rejected' });
+          }
           
           // Todo 列表更新
           else if (eventType === 'todo.updated') {
@@ -952,6 +1293,53 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     };
   }, [sessionId, isOnline]);
 
+  const updateQuestionState = (requestID: string, patch: Partial<NonNullable<QuestionPart['state']>>) => {
+    setMessages(prev =>
+      prev.map(m => {
+        if (!m.parts || m.parts.length === 0) return m;
+        let changed = false;
+        const nextParts = m.parts.map(p => {
+          if (p.type !== 'question') return p;
+          const qp = p as QuestionPart;
+          if (qp.requestID !== requestID) return p;
+          changed = true;
+          return {
+            ...qp,
+            state: {
+              status: qp.state?.status || 'pending',
+              ...qp.state,
+              ...patch
+            }
+          } as QuestionPart;
+        });
+        if (!changed) return m;
+        return { ...m, parts: nextParts };
+      })
+    );
+  };
+
+  const handleReplyQuestion = async (requestID: string, answers: Array<Array<string>>) => {
+    try {
+      const res = await clientV2.question.reply({ requestID, answers });
+      if ((res as any)?.error) throw (res as any).error;
+      updateQuestionState(requestID, { status: 'replied', answers });
+    } catch (e: any) {
+      const msg = typeof e?.message === 'string' ? e.message : JSON.stringify(e);
+      setError(`问题回答失败：${msg}`);
+    }
+  };
+
+  const handleRejectQuestion = async (requestID: string) => {
+    try {
+      const res = await clientV2.question.reject({ requestID });
+      if ((res as any)?.error) throw (res as any).error;
+      updateQuestionState(requestID, { status: 'rejected' });
+    } catch (e: any) {
+      const msg = typeof e?.message === 'string' ? e.message : JSON.stringify(e);
+      setError(`跳过问题失败：${msg}`);
+    }
+  };
+
   const handleNewChat = () => {
     if (messages.length > 0) {
       if (confirm(t('chat.new_chat_confirm'))) {
@@ -967,6 +1355,14 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     await fetchSessionHistory();
   };
 
+  const handleRenameSession = async (targetSessionId: string) => {
+    const currentTitle = historySessions.find(s => s.id === targetSessionId)?.title || '';
+    const nextTitle = prompt('会话标题:', currentTitle);
+    if (nextTitle === null) return;
+    await updateSessionTitle(targetSessionId, nextTitle);
+    await fetchSessionHistory();
+  };
+
   const handleSend = async () => {
     if (!inputValue.trim() || !sessionId || isLoading) return;
 
@@ -978,16 +1374,18 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
     };
 
     // setMessages(prev => [...prev, userMessage]);
+    const seedText = inputValue;
     setInputValue('');
     setIsLoading(true);
     setError(null);
 
     try {
-      console.log("Sending prompt to OpenCode session:", sessionId, inputValue);
+      console.log("Sending prompt to OpenCode session:", sessionId, seedText);
+      void ensureSessionTitle(sessionId, seedText);
       client.session.prompt({
         path: { id: sessionId },
         body: {
-          parts: [{ type: "text", text: inputValue}]
+          parts: [{ type: "text", text: seedText }]
         }
 
       });
@@ -1154,7 +1552,7 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
                     
                     {msg.parts && msg.parts.length > 0 ? (
                       <div className="space-y-3">
-                        {msg.parts.map((part, idx) => renderPart(part, idx))}
+                        {msg.parts.map((part, idx) => renderPart(part, idx, { onReplyQuestion: handleReplyQuestion, onRejectQuestion: handleRejectQuestion }))}
                       </div>
                     ) : (
                       <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -1411,6 +1809,20 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
                             {t('chat.history_current')}
                           </div>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (deletingSessionId) return;
+                            handleRenameSession(s.id);
+                          }}
+                          disabled={!!deletingSessionId}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-400 transition-colors"
+                          title="重命名"
+                        >
+                          <Pencil size={16} />
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => {
