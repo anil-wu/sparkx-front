@@ -9,6 +9,8 @@ import { createOpencodeClient as createOpencodeClientV2 } from "@opencode-ai/sdk
 interface ChatPanelProps {
   isCollapsed: boolean;
   togglePanel: () => void;
+  projectId?: string;
+  userId?: number;
 }
 
 // OpenCode 消息模型类型定义
@@ -551,7 +553,7 @@ function renderPart(part: Part, idx: number, handlers?: RenderPartHandlers) {
   return null;
 }
 
-export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) {
+export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId }: ChatPanelProps) {
   const { locale, t } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -934,9 +936,23 @@ export default function ChatPanel({ isCollapsed, togglePanel }: ChatPanelProps) 
             path: { id: newSessionId }, 
             body: { 
               noReply: true, // 仅注入上下文，不触发响应 
+              // role: "system",
               parts: [{ 
                 type: "text", 
-                text: "你的角色是一个专业的游戏开发助手 SaprkX，用你的一句话开发游戏" 
+                text: [
+                  "你的角色是一个专业的游戏开发助手 SaprkX，用你的一句话开发游戏",
+                  "",
+                  `userId: ${userId ?? ""}`,
+                  `projectId: ${projectId ?? ""}`,
+                  "游戏引擎是 Phaser 3。",
+                  "setp1 准备工作空间,路径是 workspace/{userId}/{projectId}/ 下面有 client_project 目录、build 目录、logs 目录、artifacts 目录等。",
+                  "setp2 分析用户需求制定技术方案，并将方案输出到工作空间 artifacts/design_{版本号}.md 文件中。",
+                  "setp3 技术方案制定任务计划，且任务中要有准备游戏环境、实现游戏逻辑、设计游戏资产（无可以忽略）、代码质量检查，构建游戏等任务。",
+                  "说明：",
+                  "1. 准备游戏环境：环境准备好后需要运行 npm install 安装依赖。",
+                  "2. 代码质量检查：运行 npm run lint 检查代码质量。",
+                  "3. 构建游戏：运行 npm run build 构建到目录 build/{版本号}。"
+                ].join("\n"),
               }] 
             } 
           });

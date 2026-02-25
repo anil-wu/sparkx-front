@@ -37,6 +37,7 @@ export default async function ProjectEditorPage({
       <div className="h-screen">
         <Workspace 
           projectId={projectId}
+          userId={session.userId}
           userLabel={userLabel}
           initialLeftPanel={initialLeftPanel} 
           heightClassName="h-full" 

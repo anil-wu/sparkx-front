@@ -14,6 +14,7 @@ import { useI18n } from "@/i18n/client";
 
 type WorkspaceProps = {
   projectId?: string;
+  userId?: number;
   userLabel?: string;
   initialLeftPanel?: 'hierarchy' | 'project';
   initialViewMode?: 'resource' | 'preview' | 'code' | 'intro';
@@ -22,6 +23,7 @@ type WorkspaceProps = {
 
 export default function Workspace({
   projectId,
+  userId,
   initialLeftPanel = 'hierarchy',
   initialViewMode = 'resource',
   heightClassName = 'h-screen',
@@ -54,7 +56,12 @@ export default function Workspace({
       <div className="flex flex-1 overflow-hidden">
         {/* 左边：ChatPanel */}
         <div className={`transition-all duration-300 relative ${isRightPanelCollapsed ? 'w-0 p-0' : 'w-auto p-4 h-full'}`}>
-          <ChatPanel isCollapsed={isRightPanelCollapsed} togglePanel={toggleRightPanel} />
+          <ChatPanel
+            isCollapsed={isRightPanelCollapsed}
+            togglePanel={toggleRightPanel}
+            projectId={projectId}
+            userId={userId}
+          />
         </div>
 
         {/* 右边：内容区域 */}
