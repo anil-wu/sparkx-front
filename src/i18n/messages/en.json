@@ -265,7 +265,12 @@
     "history_current": "Current",
     "history_delete": "Delete session",
     "history_delete_confirm": "Delete this session? This cannot be undone.",
-    "history_delete_failed": "Failed to delete session"
+    "history_delete_failed": "Failed to delete session",
+    "agents": "Agents",
+    "agents_loading": "Loading...",
+    "agents_refresh": "Refresh",
+    "agents_empty": "No agents available",
+    "agents_load_failed": "Failed to load agents"
   },
   "editor": {
     "properties": "Properties",

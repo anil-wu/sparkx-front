@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Copy, History, Minimize2, PlusCircle, Settings, Share2 } from "lucide-react";
+import { Bot, Copy, History, Minimize2, PlusCircle, Settings, Share2 } from "lucide-react";
 
 export function ChatHeader({
   title,
@@ -9,6 +9,7 @@ export function ChatHeader({
   onOpenSettings,
   onNewChat,
   onOpenHistory,
+  onOpenAgents,
   onTogglePanel,
   t,
 }: {
@@ -17,6 +18,7 @@ export function ChatHeader({
   onOpenSettings: () => void;
   onNewChat: () => void;
   onOpenHistory: () => void;
+  onOpenAgents: () => void;
   onTogglePanel: () => void;
   t: (key: string) => string;
 }) {
@@ -46,6 +48,9 @@ export function ChatHeader({
         <button onClick={onOpenHistory} className="hover:text-gray-900 transition-colors" title={t("chat.history")}>
           <History size={18} />
         </button>
+        <button onClick={onOpenAgents} className="hover:text-gray-900 transition-colors" title={t("chat.agents")} type="button">
+          <Bot size={18} />
+        </button>
         <button className="hover:text-gray-900" type="button">
           <Share2 size={18} />
         </button>
@@ -59,4 +64,3 @@ export function ChatHeader({
     </div>
   );
 }
-

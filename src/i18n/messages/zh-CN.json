@@ -265,7 +265,12 @@
     "history_current": "当前",
     "history_delete": "删除会话",
     "history_delete_confirm": "确定要删除这个会话吗？此操作无法撤销。",
-    "history_delete_failed": "删除会话失败"
+    "history_delete_failed": "删除会话失败",
+    "agents": "代理",
+    "agents_loading": "加载中...",
+    "agents_refresh": "刷新",
+    "agents_empty": "暂无可用代理",
+    "agents_load_failed": "加载代理列表失败"
   },
   "editor": {
     "properties": "属性调整",

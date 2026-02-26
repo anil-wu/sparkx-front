@@ -43,6 +43,10 @@ export function useOpencodeChat({
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
+  const [agents, setAgents] = useState<any[]>([]);
+  const [isAgentsLoading, setIsAgentsLoading] = useState(false);
+  const [agentsError, setAgentsError] = useState<string | null>(null);
+
   const isSubscribedRef = useRef(false);
   const isInitializingRef = useRef(false);
   const autoTitledSessionsRef = useRef<Set<string>>(new Set());
@@ -199,6 +203,21 @@ export function useOpencodeChat({
       return;
     }
   };
+
+  const fetchAgents = useCallback(async () => {
+    setIsAgentsLoading(true);
+    setAgentsError(null);
+    try {
+      const response = await (opencodeClient as any).app.agents();
+      const raw = (response as any)?.data;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.agents) ? raw.agents : [];
+      setAgents(list);
+    } catch {
+      setAgentsError(t("chat.agents_load_failed"));
+    } finally {
+      setIsAgentsLoading(false);
+    }
+  }, [t]);
 
   const formatHistoryTime = (timestamp: number | undefined) => {
     if (!timestamp) return "";
@@ -779,6 +798,10 @@ export function useOpencodeChat({
     historyError,
     deletingSessionId,
 
+    agents,
+    isAgentsLoading,
+    agentsError,
+
     checkHealth,
     fetchConfig,
     formatHistoryTime,
@@ -793,6 +816,7 @@ export function useOpencodeChat({
     handleNewChat,
     handleReplyQuestion,
     handleRejectQuestion,
+    fetchAgents,
     setHistoryError,
     setIsLoading,
     setError,
