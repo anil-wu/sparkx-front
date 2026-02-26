@@ -33,8 +33,14 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const { activeTool, selectElement, updateElement, setGuidelines, selectedIds } = useWorkspaceStore();
+  const dragRafRef = useRef<number | null>(null);
+  const pendingDragPosRef = useRef<{ x: number; y: number; rotation: number } | null>(null);
 
   const handleSelect = (e: Konva.KonvaEventObject<Event>) => {
+    const button = (e as any)?.evt?.button;
+    if (typeof button === 'number' && button !== 0) {
+      return;
+    }
     if (activeTool === 'select' && !locked) {
       selectElement(id);
       e.cancelBubble = true;
@@ -44,6 +50,11 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     if (locked) return;
     setGuidelines([]);
+    if (dragRafRef.current !== null) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
+    pendingDragPosRef.current = null;
     updateElement(id, {
       x: e.target.x(),
       y: e.target.y(),
@@ -71,6 +82,22 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
     }
 
     setGuidelines(result.guidelines);
+
+    pendingDragPosRef.current = {
+      x: e.target.x(),
+      y: e.target.y(),
+      rotation: e.target.rotation(),
+    };
+
+    if (dragRafRef.current === null) {
+      dragRafRef.current = requestAnimationFrame(() => {
+        dragRafRef.current = null;
+        if (!pendingDragPosRef.current) {
+          return;
+        }
+        updateElement(id, pendingDragPosRef.current);
+      });
+    }
   };
 
   const handleDblClick = (e: Konva.KonvaEventObject<Event>) => {
@@ -90,11 +117,32 @@ export const ElementWrapper: React.FC<BaseElementProps & { children?: React.Reac
       width={width}
       height={height}
       rotation={rotation}
+      onMouseDown={(e) => {
+        if ((e.evt as any)?.button !== 0) {
+          return;
+        }
+        if (activeTool === 'select' && !locked) {
+          selectElement(id);
+          e.cancelBubble = true;
+        }
+      }}
+      onTouchStart={(e) => {
+        if (activeTool === 'select' && !locked) {
+          selectElement(id);
+          e.cancelBubble = true;
+        }
+      }}
       onClick={handleSelect}
       onTap={handleSelect}
       onDblClick={handleDblClick}
       onDblTap={handleDblClick}
-      draggable={draggable && activeTool === 'select' && !isEditing && !locked && selectedIds.length < 2 && isSelected}
+      draggable={draggable && activeTool === 'select' && !isEditing && !locked && selectedIds.length < 2}
+      onDragStart={(e) => {
+        if (activeTool === 'select' && !locked) {
+          selectElement(id);
+          e.cancelBubble = true;
+        }
+      }}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={(e) => {

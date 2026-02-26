@@ -179,6 +179,13 @@
     "network_error_offline": "网络错误，已保存到离线队列",
     "save_failed": "保存失败"
   },
+  "context": {
+    "open_menu": "打开右键菜单",
+    "merge": "合并",
+    "merge_selected": "合并（{count}）",
+    "copy": "复制",
+    "delete": "删除"
+  },
   "hierarchy": {
     "title": "图层 ({count})",
     "empty": "暂无图层",

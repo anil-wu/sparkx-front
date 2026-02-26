@@ -5,7 +5,7 @@ import { ChevronRight, Eye, EyeOff, Lock, Unlock, ChevronUp, ChevronDown, Minimi
 import { BaseElement } from '../types/BaseElement';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
 import { useI18n } from '@/i18n/client';
-import { workspaceAPI } from '@/lib/workspace-api';
+import { getSelectedIds, toggleId } from '../editor/utils/selectionUtils';
 
 interface HierarchyPanelProps {
   isCollapsed: boolean;
@@ -27,25 +27,10 @@ export default function HierarchyPanel({ isCollapsed, toggleSidebar }: Hierarchy
   
   const handleLayerClick = (e: React.MouseEvent, elementId: string) => {
     if (e.shiftKey) {
-      // Shift + Click for multi-selection
-      const newSelectedIds = [...selectedIds];
-      if (selectedId && !newSelectedIds.includes(selectedId)) {
-        newSelectedIds.push(selectedId);
-      }
-      
-      if (newSelectedIds.includes(elementId)) {
-        const filtered = newSelectedIds.filter(id => id !== elementId);
-        selectElements(filtered);
-        if (selectedId === elementId) {
-          selectElement(filtered.length > 0 ? filtered[0] : null);
-        }
-      } else {
-        selectElements([...newSelectedIds, elementId]);
-      }
+      selectElements(toggleId(getSelectedIds(selectedId, selectedIds), elementId));
     } else {
       // Single selection
       selectElement(elementId);
-      selectElements([]);
     }
     updateSelectionBoundingBox();
   };

@@ -1,3 +1,5 @@
+"use client";
+
 import Konva from 'konva';
 import { BaseElement, ImageElement, ShapeElement, TextElement, DrawElement, TextShapeElement } from '../../types/BaseElement';
 

@@ -179,6 +179,13 @@
     "network_error_offline": "Network error, saved to offline queue",
     "save_failed": "Save failed"
   },
+  "context": {
+    "open_menu": "Open context menu",
+    "merge": "Merge",
+    "merge_selected": "Merge ({count})",
+    "copy": "Copy",
+    "delete": "Delete"
+  },
   "hierarchy": {
     "title": "Layers ({count})",
     "empty": "No layers yet",

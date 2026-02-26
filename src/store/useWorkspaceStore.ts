@@ -1,3 +1,5 @@
+"use client";
+
 import Konva from 'konva';
 import { create } from 'zustand';
 import { temporal, TemporalState } from 'zundo';
@@ -7,6 +9,7 @@ import { ElementState } from '../components/Workspace/types/ElementState';
 import { Guideline } from '../components/Workspace/types/Guideline';
 import { mergeElements } from '../components/Workspace/editor/utils/mergeUtils';
 import { fileAPI } from '@/lib/file-api';
+import { getSelectedIds, normalizeSelection } from '../components/Workspace/editor/utils/selectionUtils';
 
 interface WorkspaceState {
   elements: BaseElement<any>[];
@@ -46,7 +49,9 @@ interface WorkspaceState {
   addElement: (element: BaseElement<any>) => void;
   updateElement: (id: string, updates: Partial<ElementState>) => void;
   removeElement: (id: string) => void;
+  removeElements: (ids: string[]) => void;
   duplicateElement: (id: string) => void;
+  duplicateElements: (ids: string[]) => void;
   mergeSelectedElements: (projectId: number, stage?: Konva.Stage) => Promise<void>;
   dragSelectedElements: (deltaX: number, deltaY: number) => void;
 }
@@ -82,20 +87,23 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
         setElements: (elements) => set({ elements }),
         
-        selectElement: (id) => set({ selectedId: id }),
-        
-        selectElements: (ids) => set({ selectedIds: ids }),
-        
-        addSelectedId: (id) => set((state) => ({
-          selectedIds: state.selectedIds.includes(id) 
-            ? state.selectedIds 
-            : [...state.selectedIds, id]
+        selectElement: (id) => set({ selectedId: id, selectedIds: [], selectionBoundingBox: null }),
+
+        selectElements: (ids) => set(() => ({
+          ...normalizeSelection(ids),
+          selectionBoundingBox: null,
         })),
-        
-        removeSelectedId: (id) => set((state) => ({
-          selectedIds: state.selectedIds.filter(selectedId => selectedId !== id)
-        })),
-        
+
+        addSelectedId: (id) => set((state) => {
+          const next = normalizeSelection([...getSelectedIds(state.selectedId, state.selectedIds), id]);
+          return { ...next, selectionBoundingBox: null };
+        }),
+
+        removeSelectedId: (id) => set((state) => {
+          const next = normalizeSelection(getSelectedIds(state.selectedId, state.selectedIds).filter((x) => x !== id));
+          return { ...next, selectionBoundingBox: null };
+        }),
+
         clearSelection: () => set({ selectedId: null, selectedIds: [], selectionBoundingBox: null }),
         
         setActiveTool: (tool) => set({ activeTool: tool }),
@@ -119,15 +127,12 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         setDragInitialPositions: (positions) => set({ dragInitialPositions: positions }),
         
         updateSelectionBoundingBox: () => set((state) => {
-          const allSelectedIds = [...state.selectedIds];
-          if (state.selectedId && !allSelectedIds.includes(state.selectedId)) {
-            allSelectedIds.push(state.selectedId);
-          }
-          
+          const allSelectedIds = getSelectedIds(state.selectedId, state.selectedIds);
+
           if (allSelectedIds.length === 0) {
             return { selectionBoundingBox: null };
           }
-          
+
           const selectedElements = state.elements.filter(el => allSelectedIds.includes(el.id));
           if (selectedElements.length === 0) {
             return { selectionBoundingBox: null };
@@ -153,10 +158,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         }),
         
         dragSelectedElements: (deltaX, deltaY) => set((state) => {
-          const allSelectedIds = [...state.selectedIds];
-          if (state.selectedId && !allSelectedIds.includes(state.selectedId)) {
-            allSelectedIds.push(state.selectedId);
-          }
+          const allSelectedIds = getSelectedIds(state.selectedId, state.selectedIds);
 
           if (allSelectedIds.length === 0 || !state.dragInitialPositions) {
             return {};
@@ -188,9 +190,19 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
         removeElement: (id) => set((state) => ({
           elements: state.elements.filter((el) => el.id !== id),
-          selectedId: state.selectedId === id ? null : state.selectedId,
-          selectedIds: state.selectedIds.filter(selectedId => selectedId !== id)
+          ...normalizeSelection(getSelectedIds(state.selectedId, state.selectedIds).filter((selectedId) => selectedId !== id)),
+          selectionBoundingBox: null,
         })),
+
+        removeElements: (ids) => set((state) => {
+          const idSet = new Set(ids);
+          const remainingSelection = getSelectedIds(state.selectedId, state.selectedIds).filter((id) => !idSet.has(id));
+          return {
+            elements: state.elements.filter((el) => !idSet.has(el.id)),
+            ...normalizeSelection(remainingSelection),
+            selectionBoundingBox: null,
+          };
+        }),
 
         duplicateElement: (id: string) => set((state) => {
           const element = state.elements.find((el) => el.id === id);
@@ -209,15 +221,36 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             selectedId: newId
           };
         }),
+
+        duplicateElements: (ids) => set((state) => {
+          const uniqIds = Array.from(new Set(ids));
+          const elementsToCopy = state.elements.filter((el) => uniqIds.includes(el.id));
+          if (elementsToCopy.length === 0) {
+            return {};
+          }
+
+          const created = elementsToCopy.map((element) => {
+            const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+            return element.clone().update({
+              id: newId,
+              x: element.x + 20,
+              y: element.y + 20,
+              name: `${element.name} (Copy)`
+            } as any);
+          });
+
+          const nextIds = created.map((el) => el.id);
+
+          return {
+            elements: [...state.elements, ...created],
+            ...normalizeSelection(nextIds),
+            selectionBoundingBox: null,
+          };
+        }),
         
         mergeSelectedElements: async (projectId: number, stage?: Konva.Stage) => {
           const { elements, selectedIds, selectedId, setElements, selectElement, setIsMerging } = get();
-          
-          // 收集所有要合并的元素 ID（包括 selectedIds 和 selectedId）
-          const allSelectedIds = [...selectedIds];
-          if (selectedId && !allSelectedIds.includes(selectedId)) {
-            allSelectedIds.push(selectedId);
-          }
+          const allSelectedIds = getSelectedIds(selectedId, selectedIds);
           
           if (allSelectedIds.length < 2) {
             console.warn('至少需要选择两个元素');

@@ -27,6 +27,7 @@ import { workspaceAPI, Layer } from '@/lib/workspace-api';
 import { BaseElement, ShapeElement, TextElement, ImageElement, DrawElement, TextShapeElement } from './types/BaseElement';
 import { MergeToolbar } from './editor/tools/shared/MergeToolbar';
 import { calculateBoundingBox, mergeElements } from './editor/utils/mergeUtils';
+import { getSelectedIds } from './editor/utils/selectionUtils';
 
 // Dynamically import EditorStage to avoid SSR issues with Konva
 const EditorStage = dynamic(() => import('./EditorStage'), { ssr: false });
@@ -211,25 +212,21 @@ export default function CanvasArea({
     if (selectedId) {
       return elements.find((element) => element.id === selectedId) ?? null;
     }
-    if (selectedIds.length === 1) {
-      return elements.find((element) => element.id === selectedIds[0]) ?? null;
-    }
     return null;
-  }, [elements, selectedId, selectedIds]);
+  }, [elements, selectedId]);
 
   // 监听选择变化，显示/隐藏合并工具栏
   useEffect(() => {
-    const count = selectedIds.length > 0 ? selectedIds.length : (selectedId ? 1 : 0);
+    const selectedCount = selectedIds.length;
     
     // 更新选择包围盒
     const { updateSelectionBoundingBox } = useWorkspaceStore.getState();
     updateSelectionBoundingBox();
     
-    if (count >= 2 && stageInstance) {
+    if (selectedCount >= 2 && stageInstance) {
       // 计算所有选中元素的中心位置
-      const selectedElements = elements.filter(el => 
-        selectedIds.includes(el.id) || el.id === selectedId
-      );
+      const selectionIds = getSelectedIds(selectedId, selectedIds);
+      const selectedElements = elements.filter(el => selectionIds.includes(el.id));
       
       if (selectedElements.length >= 2) {
         const boundingBox = calculateBoundingBox(selectedElements);
@@ -269,17 +266,12 @@ export default function CanvasArea({
   
   // 处理下载选中的多个元素
   const handleDownloadSelected = async () => {
-    const allSelectedIds = [...selectedIds];
-    if (selectedId && !allSelectedIds.includes(selectedId)) {
-      allSelectedIds.push(selectedId);
-    }
-    
-    if (allSelectedIds.length < 2) {
+    if (selectedIds.length < 2) {
       return;
     }
     
     try {
-      const result = await mergeElements(elements, allSelectedIds, stageInstance || undefined);
+      const result = await mergeElements(elements, selectedIds, stageInstance || undefined);
       if (result && result.thumbnailSrc) {
         const link = document.createElement('a');
         link.download = `merged_${Date.now()}.png`;
@@ -419,9 +411,10 @@ export default function CanvasArea({
     }
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      const { selectedId, removeElement } = useWorkspaceStore.getState();
-      if (selectedId) {
-        removeElement(selectedId);
+      const { selectedId, selectedIds, removeElement } = useWorkspaceStore.getState();
+      const selectionIds = getSelectedIds(selectedId, selectedIds);
+      for (const id of selectionIds) {
+        removeElement(id);
       }
       return;
     }
@@ -472,13 +465,7 @@ export default function CanvasArea({
   };
 
   const renderSelectedInspector = () => {
-    // 收集所有选中的 ID，如果选中了多个对象，则不显示元素特有的工具栏（由 MergeToolbar 替代）
-    const allSelectedIds = [...selectedIds];
-    if (selectedId && !allSelectedIds.includes(selectedId)) {
-      allSelectedIds.push(selectedId);
-    }
-
-    if (allSelectedIds.length > 1) {
+    if (selectedIds.length > 0) {
       return null;
     }
 
@@ -594,7 +581,7 @@ export default function CanvasArea({
             y={mergeToolbarPos.y}
             onMerge={handleMerge}
             onDownload={handleDownloadSelected}
-            selectedCount={selectedIds.length || 1}
+            selectedCount={selectedIds.length}
             disabled={false}
           />
         )}
@@ -620,6 +607,38 @@ export default function CanvasArea({
             drawingStyle={drawingStyle}
             onContextMenu={(e, elementId) => {
               e.evt.preventDefault();
+              const { selectedId, selectedIds, selectionBoundingBox, selectElement, updateSelectionBoundingBox } = useWorkspaceStore.getState();
+              const selectionIds = getSelectedIds(selectedId, selectedIds);
+
+              const stage = (e as any).target?.getStage?.();
+              const pointerPos = stage?.getPointerPosition?.();
+              const stagePos = stage?.position?.();
+              const scale = stage?.scaleX?.();
+              const canvasPos = pointerPos && stagePos && typeof scale === 'number'
+                ? { x: (pointerPos.x - stagePos.x) / scale, y: (pointerPos.y - stagePos.y) / scale }
+                : null;
+
+              const isInsideSelectionBox = Boolean(
+                selectionBoundingBox &&
+                  canvasPos &&
+                  canvasPos.x >= selectionBoundingBox.x &&
+                  canvasPos.x <= selectionBoundingBox.x + selectionBoundingBox.width &&
+                  canvasPos.y >= selectionBoundingBox.y &&
+                  canvasPos.y <= selectionBoundingBox.y + selectionBoundingBox.height
+              );
+
+              if (elementId) {
+                if (selectionIds.length === 0) {
+                  selectElement(elementId);
+                  updateSelectionBoundingBox();
+                } else if (!selectionIds.includes(elementId)) {
+                  selectElement(elementId);
+                  updateSelectionBoundingBox();
+                }
+              } else if (selectionIds.length > 0 && isInsideSelectionBox) {
+                updateSelectionBoundingBox();
+              }
+
               setContextMenu({
                 x: e.evt.clientX,
                 y: e.evt.clientY,
@@ -636,6 +655,7 @@ export default function CanvasArea({
             y={contextMenu.y}
             elementId={contextMenu.elementId}
             onClose={() => setContextMenu(null)}
+            onMergeSelected={handleMerge}
           />
         )}
 
