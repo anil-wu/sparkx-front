@@ -275,10 +275,6 @@
     "stroke": "描边",
     "align_center": "居中"
   },
-  "context": {
-    "copy": "复制",
-    "delete": "删除"
-  },
   "history": {
     "undo": "撤销 ({count})",
     "redo": "重做 ({count})"

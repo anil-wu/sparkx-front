@@ -16,6 +16,7 @@ import { ToolFactory } from './editor/tools/ToolFactory';
 import { IMouseAction, ToolContext } from './editor/interfaces/IMouseAction';
 import { getElementComponent } from './editor/tools/ElementRegistry';
 import { getSnapShift } from './editor/utils/snapUtils';
+import { getSelectedIds } from './editor/utils/selectionUtils';
 import { Rect } from 'react-konva';
 
 
@@ -111,24 +112,34 @@ const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
 
   // Handle selection transformer
   useEffect(() => {
-    if (selectedId && selectedIds.length < 2 && transformerRef.current && stageRef.current && !isDrawing) {
-      const selectedElement = elements.find(el => el.id === selectedId);
-      if (selectedElement?.locked) {
-        transformerRef.current.nodes([]);
-        return;
-      }
-
-      const selectedNode = stageRef.current.findOne('#' + selectedId);
-      if (selectedNode) {
-        transformerRef.current.nodes([selectedNode]);
-        transformerRef.current.getLayer()?.batchDraw();
-      } else {
-        transformerRef.current.nodes([]);
-      }
-    } else if (transformerRef.current) {
-      transformerRef.current.nodes([]);
+    if (!transformerRef.current || !stageRef.current || isDrawing) {
+      transformerRef.current?.nodes([]);
+      return;
     }
-  }, [selectedId, elements, isDrawing]);
+
+    const selectionIds = getSelectedIds(selectedId, selectedIds);
+    if (selectionIds.length === 0) {
+      transformerRef.current.nodes([]);
+      return;
+    }
+
+    const selectableIds = selectionIds.filter((id) => {
+      const el = elements.find((x) => x.id === id);
+      return Boolean(el && !el.locked);
+    });
+
+    if (selectableIds.length === 0) {
+      transformerRef.current.nodes([]);
+      return;
+    }
+
+    const nodes = selectableIds
+      .map((id) => stageRef.current!.findOne('#' + id))
+      .filter(Boolean) as Konva.Node[];
+
+    transformerRef.current.nodes(nodes);
+    transformerRef.current.getLayer()?.batchDraw();
+  }, [selectedId, selectedIds, elements, isDrawing]);
 
   return (
     <Stage
@@ -226,24 +237,15 @@ const EditorStage = forwardRef<Konva.Stage, EditorStageProps>(({
           />
         )}
         
-        {/* 渲染多选包围盒 - 仅在选中超过一个元素时显示 */}
-        {!isDraggingSelection && selectionBoundingBox && (selectedIds.length + (selectedId ? 1 : 0)) > 1 && (
-          <Rect
-            x={selectionBoundingBox.x}
-            y={selectionBoundingBox.y}
-            width={selectionBoundingBox.width}
-            height={selectionBoundingBox.height}
-            fill="transparent"
-            stroke="#3b82f6"
-            strokeWidth={2 / zoom}
-            dash={[6, 4]}
-            listening={false}
-          />
-        )}
-        
         <Transformer
-
           ref={transformerRef}
+          borderStroke="#3b82f6"
+          borderDash={[6, 4]}
+          borderStrokeWidth={2 / zoom}
+          anchorStroke="#3b82f6"
+          anchorFill="#ffffff"
+          anchorStrokeWidth={2 / zoom}
+          anchorSize={10 / zoom}
           boundBoxFunc={(oldBox, newBox) => {
             // limit resize
             if (newBox.width < 5 || newBox.height < 5) {
