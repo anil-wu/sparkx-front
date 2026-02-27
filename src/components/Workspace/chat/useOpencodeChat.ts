@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { opencodeClient, opencodeClientV2 } from "./opencodeClients";
+import { createOpencodeClientForDirectory } from "./opencodeClients";
 import type {
   ChatMessage,
   MessageInfo,
@@ -24,6 +24,13 @@ export function useOpencodeChat({
   projectId?: string;
   userId?: number;
 }) {
+  const directory = useMemo(() => {
+    if (!userId || !projectId) return undefined;
+    return `${userId}/${projectId}`;
+  }, [projectId, userId]);
+
+  const opencodeClient = useMemo(() => createOpencodeClientForDirectory(directory), [directory]);
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -65,10 +72,7 @@ export function useOpencodeChat({
     const trimmed = title.trim();
     if (!trimmed) return false;
     try {
-      const response = await opencodeClient.session.update({
-        path: { id: targetSessionId },
-        body: { title: trimmed },
-      });
+      const response = await opencodeClient.session.update({ sessionID: targetSessionId, title: trimmed });
       const nextTitle = (response as any).data?.title || trimmed;
       setHistorySessions(prev => {
         const idx = prev.findIndex(s => s.id === targetSessionId);
@@ -92,7 +96,7 @@ export function useOpencodeChat({
 
     autoTitledSessionsRef.current.add(targetSessionId);
     try {
-      const existing = await opencodeClient.session.get({ path: { id: targetSessionId } });
+      const existing = await opencodeClient.session.get({ sessionID: targetSessionId });
       const existingTitle = (existing as any).data?.title as string | undefined;
       if (existingTitle && existingTitle.trim()) return;
       await updateSessionTitle(targetSessionId, derived);
@@ -115,41 +119,32 @@ export function useOpencodeChat({
       setMessages([]);
 
       try {
+        const directoryInfo = directory ? `当前项目工作目录：${directory}` : "当前项目工作目录：未设置（缺少 userId/projectId）";
         await opencodeClient.session.prompt({
-          path: { id: newSessionId },
-          body: {
-            noReply: true,
-            parts: [
-              {
-                type: "text",
-                text: [
-                  "你的角色是一个专业的游戏开发助手 SaprkX，用你的一句话开发游戏",
-                  "",
-                  `userId: ${userId ?? ""}`,
-                  `projectId: ${projectId ?? ""}`,
-                  "游戏引擎是 Phaser 3。",
-                  "setp1 准备工作空间,路径是 workspace/{userId}/{projectId}/ 下面有 client_project 目录、build 目录、logs 目录、artifacts 目录等。",
-                  "setp2 分析用户需求制定技术方案，并将方案输出到工作空间 artifacts/design_{版本号}.md 文件中。",
-                  "setp3 技术方案制定任务计划，且任务中要有准备游戏环境、实现游戏逻辑、设计游戏资产（无可以忽略）、代码质量检查，构建游戏等任务。",
-                  "说明：",
-                  "1. 准备游戏环境：环境准备好后需要运行 npm install 安装依赖。",
-                  "2. 代码质量检查：运行 npm run lint 检查代码质量。",
-                  "3. 构建游戏：运行 npm run build 构建到目录 build/{版本号}。",
-                ].join("\n"),
-              },
-            ],
-          },
+          sessionID: newSessionId,
+          noReply: true,
+          parts: [
+            {
+              type: "text",
+              text: [
+                "当前会话的工作目录已经定位到项目根目录。",
+                directoryInfo,
+                "",
+                "所有文件读写请使用相对路径，不要再额外拼接 userId/projectId。",
+                "示例：写 match3.html，而不是 45/15/match3.html。",
+                "示例：写 artifacts/design_v1.md，而不是 45/15/artifacts/design_v1.md。",
+              ].join("\n"),
+            },
+          ],
         });
-      } catch {
-        return;
-      }
+      } catch {}
     } catch {
       setError(t("chat.error_session_failed"));
     } finally {
       setIsLoading(false);
       isInitializingRef.current = false;
     }
-  }, [projectId, t, userId]);
+  }, [directory, opencodeClient, t]);
 
   useEffect(() => {
     void initSession();
@@ -177,7 +172,7 @@ export function useOpencodeChat({
     } catch {
       setIsOnline(false);
     }
-  }, [initSession, isLoading, sessionId]);
+  }, [initSession, isLoading, opencodeClient.config, sessionId]);
 
   useEffect(() => {
     void checkHealth();
@@ -197,6 +192,7 @@ export function useOpencodeChat({
 
       const providersResponse = await opencodeClient.config.providers();
       if (providersResponse.data?.providers) {
+        console.log("providersResponse.data.providers", providersResponse.data.providers);
         setAvailableProviders(providersResponse.data.providers);
       }
     } catch {
@@ -217,7 +213,7 @@ export function useOpencodeChat({
     } finally {
       setIsAgentsLoading(false);
     }
-  }, [t]);
+  }, [opencodeClient, t]);
 
   const formatHistoryTime = (timestamp: number | undefined) => {
     if (!timestamp) return "";
@@ -232,6 +228,55 @@ export function useOpencodeChat({
     } catch {
       return new Date(timestamp).toLocaleString();
     }
+  };
+
+  const formatSessionError = (rawError: any) => {
+    if (!rawError) return "会话错误";
+    if (typeof rawError === "string") return rawError;
+
+    const name = typeof rawError.name === "string" ? rawError.name : typeof rawError.type === "string" ? rawError.type : "";
+    const providerID =
+      typeof rawError.providerID === "string" ? rawError.providerID : typeof rawError.provider === "string" ? rawError.provider : "";
+    const status =
+      typeof rawError.status === "number"
+        ? rawError.status
+        : typeof rawError.statusCode === "number"
+          ? rawError.statusCode
+          : typeof rawError.code === "number"
+            ? rawError.code
+            : undefined;
+    const message =
+      typeof rawError.message === "string"
+        ? rawError.message
+        : typeof rawError.error === "string"
+          ? rawError.error
+          : typeof rawError.detail === "string"
+            ? rawError.detail
+            : "";
+
+    if (message.includes("Google Generative AI API key is missing") || message.includes("GOOGLE_GENERATIVE_AI_API_KEY")) {
+      return `Google 鉴权失败：请设置 GOOGLE_GENERATIVE_AI_API_KEY`;
+    }
+
+    if (name.toLowerCase().includes("providerauth") || name.toLowerCase().includes("auth")) {
+      return providerID ? `鉴权失败：请配置 ${providerID} 的 API Key` : "鉴权失败：请检查 API Key 配置";
+    }
+
+    if (name.toLowerCase().includes("messageoutputlength")) {
+      return "输出过长：请缩短需求或让模型分步输出";
+    }
+
+    if (name.toLowerCase().includes("messageaborted") || rawError.abort === true) {
+      return "会话已中断";
+    }
+
+    if (name.toLowerCase().includes("apierror") && typeof status === "number") {
+      return message ? `API 错误 (${status})：${message}` : `API 错误 (${status})`;
+    }
+
+    if (message) return name ? `${name}：${message}` : message;
+    if (providerID) return `会话错误：${providerID}`;
+    return `会话错误：${JSON.stringify(rawError)}`;
   };
 
   const normalizePartForUI = (rawPart: any): Part | null => {
@@ -302,7 +347,7 @@ export function useOpencodeChat({
     setIsHistoryLoading(true);
     setHistoryError(null);
     try {
-      const response = await opencodeClient.session.list({});
+      const response = await opencodeClient.session.list({ limit: 50 });
       const sessions = (response.data || []) as Array<{ id: string; title: string; time?: { created: number; updated: number } }>;
       const sorted = [...sessions].sort((a, b) => (b.time?.updated || 0) - (a.time?.updated || 0));
       setHistorySessions(sorted.slice(0, 50));
@@ -318,8 +363,8 @@ export function useOpencodeChat({
     setError(null);
     try {
       const response = await opencodeClient.session.messages({
-        path: { id: targetSessionId },
-        query: { limit: 200 },
+        sessionID: targetSessionId,
+        limit: 200,
       });
 
       const items = (response.data || []) as Array<{ info: any; parts: any[] }>;
@@ -361,7 +406,7 @@ export function useOpencodeChat({
     setDeletingSessionId(targetSessionId);
     setHistoryError(null);
     try {
-      await opencodeClient.session.delete({ path: { id: targetSessionId } });
+      await opencodeClient.session.delete({ sessionID: targetSessionId });
 
       setHistorySessions(prev => prev.filter(s => s.id !== targetSessionId));
 
@@ -396,13 +441,13 @@ export function useOpencodeChat({
     try {
       if (apiKey) {
         await opencodeClient.auth.set({
-          path: { id: provider },
-          body: { type: "api", key: apiKey },
+          providerID: provider,
+          auth: { type: "api", key: apiKey },
         });
       }
 
       await opencodeClient.config.update({
-        body: { model: `${provider}/${modelId}` },
+        config: { model: `${provider}/${modelId}` },
       });
 
       setSettingsFeedback({ type: "success", message: t("chat.settings_saved") });
@@ -447,25 +492,25 @@ export function useOpencodeChat({
 
   const handleReplyQuestion = useCallback(async (requestID: string, answers: Array<Array<string>>) => {
     try {
-      const res = await opencodeClientV2.question.reply({ requestID, answers });
+      const res = await opencodeClient.question.reply({ requestID, answers });
       if ((res as any)?.error) throw (res as any).error;
       updateQuestionState(requestID, { status: "replied", answers });
     } catch (e: any) {
       const msg = typeof e?.message === "string" ? e.message : JSON.stringify(e);
       setError(`问题回答失败：${msg}`);
     }
-  }, [updateQuestionState]);
+  }, [opencodeClient, updateQuestionState]);
 
   const handleRejectQuestion = useCallback(async (requestID: string) => {
     try {
-      const res = await opencodeClientV2.question.reject({ requestID });
+      const res = await opencodeClient.question.reject({ requestID });
       if ((res as any)?.error) throw (res as any).error;
       updateQuestionState(requestID, { status: "rejected" });
     } catch (e: any) {
       const msg = typeof e?.message === "string" ? e.message : JSON.stringify(e);
       setError(`跳过问题失败：${msg}`);
     }
-  }, [updateQuestionState]);
+  }, [opencodeClient, updateQuestionState]);
 
   const normalizeQuestionsForUI = useCallback((rawQuestions: any): Array<QuestionInfoUI> => {
     const list = Array.isArray(rawQuestions) ? rawQuestions : [];
@@ -658,7 +703,6 @@ export function useOpencodeChat({
             switch (status.type) {
               case "idle":
                 setIsLoading(false);
-                setError(null);
                 break;
               case "busy":
                 setIsLoading(true);
@@ -672,8 +716,7 @@ export function useOpencodeChat({
             const { error: rawError, sessionID: errorSessionID } = event.properties as any;
             if (errorSessionID && errorSessionID !== sessionId) continue;
             if (rawError) {
-              const errorMsg = typeof rawError === "string" ? rawError : JSON.stringify(rawError);
-              setError(`会话错误：${errorMsg}`);
+              setError(`会话错误：${formatSessionError(rawError)}`);
               setIsLoading(false);
             }
           } else if (eventType === "question.asked") {
@@ -742,7 +785,7 @@ export function useOpencodeChat({
       stream?.return?.(undefined);
       isSubscribedRef.current = false;
     };
-  }, [isOnline, normalizeQuestionsForUI, normalizeTodos, sessionId, updateQuestionState]);
+  }, [isOnline, normalizeQuestionsForUI, normalizeTodos, opencodeClient.event, sessionId, updateQuestionState]);
 
   const sendPrompt = async (seedText: string) => {
     if (!seedText.trim() || !sessionId || isLoading) return false;
@@ -752,8 +795,8 @@ export function useOpencodeChat({
     try {
       void ensureSessionTitle(sessionId, seedText);
       opencodeClient.session.prompt({
-        path: { id: sessionId },
-        body: { parts: [{ type: "text", text: seedText }] },
+        sessionID: sessionId,
+        parts: [{ type: "text", text: seedText }],
       });
       return true;
     } catch {
