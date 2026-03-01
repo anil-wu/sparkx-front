@@ -9,6 +9,27 @@ type ProjectsListResponse = {
   };
 };
 
+export type BuildVersionItem = {
+  buildVersionId: number;
+  projectId: number;
+  softwareManifestId: number;
+  versionNumber: number;
+  description: string;
+  buildVersionFileId: number;
+  buildVersionFileVersionId: number;
+  createdBy: number;
+  createdAt: string;
+};
+
+type BuildVersionsListResponse = {
+  list: BuildVersionItem[];
+  page: {
+    page: number;
+    pageSize: number;
+    total: number;
+  };
+};
+
 type PreUploadResponse = {
   uploadUrl: string;
   fileId: number;
@@ -65,6 +86,17 @@ export const listProjects = async (
 
 export const getProjectById = async (projectId: string): Promise<Project> =>
   requestJson<Project>(`/api/projects/${projectId}`);
+
+export const listProjectBuildVersions = async (
+  projectId: string,
+  page = 1,
+  pageSize = 60,
+): Promise<BuildVersionItem[]> => {
+  const data = await requestJson<BuildVersionsListResponse>(
+    `/api/projects/${projectId}/build-versions?page=${page}&pageSize=${pageSize}`,
+  );
+  return data.list;
+};
 
 export const createProject = async (input?: {
   name?: string;

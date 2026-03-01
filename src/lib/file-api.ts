@@ -21,6 +21,11 @@ export interface ProjectFileItem {
   storageKey: string;
 }
 
+export interface DownloadFileResponse {
+  downloadUrl: string;
+  expiresAt: string;
+}
+
 export const fileAPI = {
   /**
    * 预上传文件，获取 OSS 上传 URL
@@ -102,6 +107,32 @@ export const fileAPI = {
    */
   getDownloadUrl: (fileId: number): string => {
     return `/api/files/${fileId}/content`;
+  },
+
+  getSignedDownloadUrl: async (
+    fileId: number,
+    options?: { versionId?: number; versionNumber?: number },
+  ): Promise<DownloadFileResponse> => {
+    const searchParams = new URLSearchParams();
+    if (typeof options?.versionId === "number" && Number.isInteger(options.versionId)) {
+      searchParams.set("versionId", String(options.versionId));
+    }
+    if (typeof options?.versionNumber === "number" && Number.isInteger(options.versionNumber)) {
+      searchParams.set("versionNumber", String(options.versionNumber));
+    }
+    const query = searchParams.size ? `?${searchParams.toString()}` : "";
+
+    const response = await fetch(`/api/files/${fileId}/download${query}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `Download request failed with status ${response.status}`);
+    }
+
+    return (await response.json()) as DownloadFileResponse;
   },
 
   /**

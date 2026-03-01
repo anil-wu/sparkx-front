@@ -559,7 +559,7 @@ export function useOpencodeChat({
           if (isCancelled) break;
 
           const eventType: string = event.type;
-
+          console.log("eventType", eventType, event.properties);
           if (eventType === "message.part.delta") {
             const { delta, field, messageID, partID, sessionID: eventSessionID } = event.properties as any;
             if (!delta || !messageID || !partID || field !== "text") continue;

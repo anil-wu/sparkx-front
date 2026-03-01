@@ -86,7 +86,7 @@ export default function Workspace({
             />
           ) : (
             // 预览模式：只显示 GamePanel
-            <GamePanel />
+            <GamePanel projectId={projectId} />
           )}
         </div>
       </div>
