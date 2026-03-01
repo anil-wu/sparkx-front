@@ -16,6 +16,7 @@ type WorkspaceProps = {
   projectId?: string;
   userId?: number;
   userLabel?: string;
+  userToken?: string;
   initialLeftPanel?: 'hierarchy' | 'project';
   initialViewMode?: 'resource' | 'preview' | 'code' | 'intro';
   heightClassName?: string;
@@ -24,6 +25,7 @@ type WorkspaceProps = {
 export default function Workspace({
   projectId,
   userId,
+  userToken,
   initialLeftPanel = 'hierarchy',
   initialViewMode = 'resource',
   heightClassName = 'h-screen',
@@ -61,6 +63,7 @@ export default function Workspace({
             togglePanel={toggleRightPanel}
             projectId={projectId}
             userId={userId}
+            userToken={userToken}
           />
         </div>
 

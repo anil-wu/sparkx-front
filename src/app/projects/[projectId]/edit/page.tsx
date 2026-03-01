@@ -39,6 +39,7 @@ export default async function ProjectEditorPage({
           projectId={projectId}
           userId={session.userId}
           userLabel={userLabel}
+          userToken={session.accessToken}
           initialLeftPanel={initialLeftPanel} 
           heightClassName="h-full" 
         />

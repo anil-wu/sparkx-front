@@ -5,6 +5,7 @@ export interface ChatPanelProps {
   togglePanel: () => void;
   projectId?: string;
   userId?: number;
+  userToken?: string;
 }
 
 export interface MessageTokens {

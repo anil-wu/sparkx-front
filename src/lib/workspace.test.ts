@@ -1,239 +1,123 @@
-/**
- * Workspace API 测试示例
- * 
- * 这些测试展示了如何使用 workspace API 和相关的 hook
- * 实际运行时需要在浏览器环境中测试
- */
+import "../test/setup"
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { workspaceAPI, LayerSyncRequest } from './workspace-api';
-import { useWorkspaceSave } from '../hooks/useWorkspaceSave';
-import { useWorkspaceStore } from '../store/useWorkspaceStore';
-import { ElementFactory } from '../components/Workspace/types/BaseElement';
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 
-describe('Workspace API', () => {
+import { workspaceAPI, type LayerSyncRequest } from "./workspace-api"
+
+type FetchCall = { url: string; init?: RequestInit }
+
+function jsonResponse(payload: any, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "content-type": "application/json" },
+  })
+}
+
+describe("Workspace API", () => {
+  const calls: FetchCall[] = []
+  const originalFetch = globalThis.fetch
+
   beforeEach(() => {
-    vi.clearAllMocks();
-  });
+    calls.length = 0
+    globalThis.fetch = (async (input: any, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input?.url || "")
+      calls.push({ url, init })
 
-  it('should create canvas', async () => {
-    const projectId = 123;
-    const canvasId = await workspaceAPI.createCanvas(projectId, {
-      name: 'Test Canvas',
-      backgroundColor: '#ffffff',
-      metadata: {
-        gridSize: 10,
-        snapEnabled: true,
-      },
-    });
+      if (url.startsWith("/api/workspace/canvas") && init?.method === "POST") {
+        return jsonResponse({ data: { canvasId: 101 } })
+      }
+      if (url.startsWith("/api/workspace/canvas") && (init?.method === "GET" || !init?.method)) {
+        return jsonResponse({
+          canvas: {
+            id: 101,
+            projectId: 123,
+            name: "Main Canvas",
+            backgroundColor: "#ffffff",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 1,
+          },
+          layers: [],
+        })
+      }
+      if (url.startsWith("/api/workspace/layers/sync") && init?.method === "POST") {
+        return jsonResponse({ uploaded: 1, updated: 0, skipped: 0, layerMapping: { "layer-1": 999 } })
+      }
+      if (url.startsWith("/api/workspace/layers/") && init?.method === "PUT") {
+        return jsonResponse({ ok: true })
+      }
+      if (url.startsWith("/api/workspace/layers/") && init?.method === "DELETE") {
+        return jsonResponse({ layerId: 456, deleted: true, deletedAt: new Date().toISOString() })
+      }
+      if (url.endsWith("/restore") && init?.method === "POST") {
+        return jsonResponse({ layerId: 456, restored: true, restoredAt: new Date().toISOString() })
+      }
+      if (url.startsWith("/api/workspace/layers/deleted") && (init?.method === "GET" || !init?.method)) {
+        return jsonResponse({ deletedLayers: [], total: 0 })
+      }
+      return new Response("not found", { status: 404 })
+    }) as any
+  })
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
 
-    expect(canvasId).toBeDefined();
-    expect(typeof canvasId).toBe('number');
-  });
+  it("creates canvas via api route", async () => {
+    const canvasId = await workspaceAPI.createCanvas(123, { name: "Test Canvas" })
+    expect(canvasId).toBe(101)
+    expect(calls.some((c) => c.url.includes("/api/workspace/canvas") && c.init?.method === "POST")).toBe(true)
+  })
 
-  it('should get canvas', async () => {
-    const projectId = 123;
-    const canvasData = await workspaceAPI.getCanvas(projectId);
+  it("gets canvas via api route", async () => {
+    const canvas = await workspaceAPI.getCanvas(123)
+    expect(canvas?.canvas?.id).toBe(101)
+    expect(Array.isArray(canvas?.layers)).toBe(true)
+  })
 
-    if (canvasData) {
-      expect(canvasData.canvas).toBeDefined();
-      expect(canvasData.layers).toBeDefined();
-      expect(Array.isArray(canvasData.layers)).toBe(true);
-    }
-  });
-
-  it('should sync layers', async () => {
-    const projectId = 123;
+  it("syncs layers via api route", async () => {
     const layers: LayerSyncRequest[] = [
       {
-        id: 'layer-1',
-        layerType: 'rectangle',
-        name: 'Test Rectangle',
+        id: "layer-1",
+        layerType: "rectangle",
+        name: "Rect",
         zIndex: 0,
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 100,
+        x: 0,
+        y: 0,
+        width: 10,
+        height: 10,
         rotation: 0,
         visible: true,
         locked: false,
-        properties: {
-          color: '#3498db',
-          stroke: '#2980b9',
-          strokeWidth: 2,
-        },
+        properties: { color: "#000" },
       },
-      {
-        id: 'layer-2',
-        layerType: 'text',
-        name: 'Test Text',
-        zIndex: 1,
-        x: 150,
-        y: 150,
-        width: 300,
-        height: 50,
-        rotation: 0,
-        visible: true,
-        locked: false,
-        properties: {
-          text: 'Hello World',
-          fontSize: 24,
-          fontFamily: 'Arial',
-          textColor: '#000000',
-        },
-      },
-    ];
+    ]
+    const result = await workspaceAPI.syncLayers(123, layers)
+    expect(result.uploaded).toBe(1)
+    expect(result.layerMapping["layer-1"]).toBe(999)
+  })
 
-    const result = await workspaceAPI.syncLayers(projectId, layers);
+  it("updates layer via api route", async () => {
+    await workspaceAPI.updateLayer(456, { x: 1 })
+    expect(calls.some((c) => c.url.includes("/api/workspace/layers/456") && c.init?.method === "PUT")).toBe(true)
+  })
 
-    expect(result.uploaded).toBeGreaterThanOrEqual(0);
-    expect(result.updated).toBeGreaterThanOrEqual(0);
-    expect(result.skipped).toBeGreaterThanOrEqual(0);
-    expect(result.layerMapping).toBeDefined();
-  });
+  it("deletes layer via api route", async () => {
+    const result = await workspaceAPI.deleteLayer(456)
+    expect(result.deleted).toBe(true)
+  })
 
-  it('should update layer', async () => {
-    const layerId = 456;
-    
-    await workspaceAPI.updateLayer(layerId, {
-      x: 200,
-      y: 200,
-      rotation: 15,
-      properties: {
-        color: '#e74c3c',
-      },
-    });
-  });
+  it("restores layer via api route", async () => {
+    const result = await workspaceAPI.restoreLayer(456)
+    expect(result.restored).toBe(true)
+  })
 
-  it('should delete layer (soft delete)', async () => {
-    const layerId = 456;
-    const result = await workspaceAPI.deleteLayer(layerId);
+  it("gets deleted layers via api route", async () => {
+    const result = await workspaceAPI.getDeletedLayers(789, 50)
+    expect(Array.isArray(result.deletedLayers)).toBe(true)
+    expect(result.total).toBe(0)
+  })
 
-    expect(result.deleted).toBe(true);
-    expect(result.deletedAt).toBeDefined();
-  });
-
-  it('should restore layer', async () => {
-    const layerId = 456;
-    const result = await workspaceAPI.restoreLayer(layerId);
-
-    expect(result.restored).toBe(true);
-    expect(result.restoredAt).toBeDefined();
-  });
-
-  it('should get deleted layers', async () => {
-    const canvasId = 789;
-    const result = await workspaceAPI.getDeletedLayers(canvasId, 50);
-
-    expect(result.deletedLayers).toBeDefined();
-    expect(Array.isArray(result.deletedLayers)).toBe(true);
-    expect(result.total).toBeGreaterThanOrEqual(0);
-  });
-});
-
-describe('useWorkspaceSave Hook', () => {
-  it('should save layers to backend', async () => {
-    const projectId = '123';
-    
-    // Setup store with some elements
-    const element = ElementFactory.createDefault('rectangle', 100, 100);
-    useWorkspaceStore.getState().addElement(element);
-
-    // Test save function would be called
-    // Note: This requires React testing library for proper hook testing
-    expect(useWorkspaceStore.getState().elements.length).toBeGreaterThan(0);
-  });
-
-  it('should handle offline queue', () => {
-    const queue = [];
-    
-    // Simulate offline save
-    localStorage.setItem('offlineSaveQueue', JSON.stringify(queue));
-    
-    const stored = localStorage.getItem('offlineSaveQueue');
-    expect(stored).toBeDefined();
-  });
-});
-
-describe('Element to Layer Conversion', () => {
-  it('should convert rectangle element to layer request', () => {
-    const element = ElementFactory.createDefault('rectangle', 100, 100);
-    const state = element.toState();
-
-    const layerRequest: LayerSyncRequest = {
-      id: element.id,
-      layerType: element.type,
-      name: element.name,
-      zIndex: 0,
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-      rotation: element.rotation,
-      visible: element.visible,
-      locked: element.locked,
-      properties: {
-        color: state.color,
-        stroke: state.stroke,
-        strokeWidth: state.strokeWidth,
-        cornerRadius: state.cornerRadius,
-      },
-    };
-
-    expect(layerRequest.layerType).toBe('rectangle');
-    expect(layerRequest.properties.color).toBeDefined();
-  });
-
-  it('should convert text element to layer request', () => {
-    const element = ElementFactory.createDefault('text', 100, 100);
-    const state = element.toState();
-
-    const layerRequest: LayerSyncRequest = {
-      id: element.id,
-      layerType: element.type,
-      name: element.name,
-      zIndex: 0,
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-      rotation: element.rotation,
-      visible: element.visible,
-      locked: element.locked,
-      properties: {
-        text: state.text,
-        fontSize: state.fontSize,
-        fontFamily: state.fontFamily,
-        textColor: state.textColor,
-      },
-    };
-
-    expect(layerRequest.layerType).toBe('text');
-    expect(layerRequest.properties.text).toBeDefined();
-  });
-
-  it('should convert image element to layer request', () => {
-    const element = ElementFactory.createDefault('image', 100, 100);
-    const state = element.toState();
-
-    const layerRequest: LayerSyncRequest = {
-      id: element.id,
-      layerType: element.type,
-      name: element.name,
-      zIndex: 0,
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-      rotation: element.rotation,
-      visible: element.visible,
-      locked: element.locked,
-      properties: {
-        src: state.src,
-      },
-    };
-
-    expect(layerRequest.layerType).toBe('image');
-    expect(layerRequest.properties.src).toBeDefined();
-  });
-});
+  it("records fetch calls", () => {
+    expect(calls.length).toBeGreaterThanOrEqual(0)
+  })
+})

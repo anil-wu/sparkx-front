@@ -14,7 +14,7 @@ import { TodoPanel } from "./TodoPanel";
 import type { ChatPanelProps } from "./types";
 import { useOpencodeChat } from "./useOpencodeChat";
 
-export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId }: ChatPanelProps) {
+export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId, userToken }: ChatPanelProps) {
   const { locale, t } = useI18n();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -23,7 +23,7 @@ export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId 
   const [isTodoExpanded, setIsTodoExpanded] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
-  const chat = useOpencodeChat({ locale, t, projectId, userId });
+  const chat = useOpencodeChat({ locale, t, projectId, userId, userToken });
 
   useEffect(() => {
     setIsTodoExpanded(false);

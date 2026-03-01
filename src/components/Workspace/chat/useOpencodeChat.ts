@@ -18,15 +18,18 @@ export function useOpencodeChat({
   t,
   projectId,
   userId,
+  userToken,
 }: {
   locale: string;
   t: (key: string) => string;
   projectId?: string;
   userId?: number;
+  userToken?: string;
 }) {
   const directory = useMemo(() => {
     if (!userId || !projectId) return undefined;
-    return `${userId}/${projectId}`;
+    // return `${userId}/${projectId}`;
+    return ``;
   }, [projectId, userId]);
 
   const opencodeClient = useMemo(() => createOpencodeClientForDirectory(directory), [directory]);
@@ -119,7 +122,8 @@ export function useOpencodeChat({
       setMessages([]);
 
       try {
-        const directoryInfo = directory ? `当前项目工作目录：${directory}` : "当前项目工作目录：未设置（缺少 userId/projectId）";
+        // const directoryInfo = directory ? `当前项目工作目录：${directory}` : "当前项目工作目录：未设置（缺少 userId/projectId）";
+        const tokenInfo = userToken ? `token：${userToken}` : "用户 token：未设置";
         await opencodeClient.session.prompt({
           sessionID: newSessionId,
           noReply: true,
@@ -127,12 +131,12 @@ export function useOpencodeChat({
             {
               type: "text",
               text: [
-                "当前会话的工作目录已经定位到项目根目录。",
-                directoryInfo,
-                "",
-                "所有文件读写请使用相对路径，不要再额外拼接 userId/projectId。",
-                "示例：写 match3.html，而不是 45/15/match3.html。",
-                "示例：写 artifacts/design_v1.md，而不是 45/15/artifacts/design_v1.md。",
+                "用户信息：",
+                "userId：" + userId,
+                "projectId：" + projectId,
+                "templateName：2d_game_client_phaser",
+                "apiBaseUrl：https://host.docker.internal:8890",
+                tokenInfo,
               ].join("\n"),
             },
           ],
@@ -144,7 +148,7 @@ export function useOpencodeChat({
       setIsLoading(false);
       isInitializingRef.current = false;
     }
-  }, [directory, opencodeClient, t]);
+  }, [directory, opencodeClient, t, userToken]);
 
   useEffect(() => {
     void initSession();
