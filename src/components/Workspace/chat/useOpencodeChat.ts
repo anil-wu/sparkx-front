@@ -26,13 +26,47 @@ export function useOpencodeChat({
   userId?: number;
   userToken?: string;
 }) {
-  const directory = useMemo(() => {
-    if (!userId || !projectId) return undefined;
-    // return `${userId}/${projectId}`;
-    return ``;
+  const [workspaceDirectory, setWorkspaceDirectory] = useState<string | undefined>(undefined);
+  const workspaceDirectoryKeyRef = useRef<string | null>(null);
+
+  const sessionStorageKey = useMemo(() => {
+    if (!projectId) return null;
+    const userKey = userId ? String(userId) : "anon";
+    return `sparkplay:chat:lastSession:${userKey}:${projectId}`;
   }, [projectId, userId]);
 
-  const opencodeClient = useMemo(() => createOpencodeClientForDirectory(directory), [directory]);
+  useEffect(() => {
+    if (!userId || !projectId) {
+      workspaceDirectoryKeyRef.current = null;
+      setWorkspaceDirectory(undefined);
+      return;
+    }
+
+    const key = `${userId}:${projectId}`;
+    if (workspaceDirectoryKeyRef.current === key) return;
+    workspaceDirectoryKeyRef.current = key;
+
+    void (async () => {
+      try {
+        const response = await fetch("http://localhost:7070/api/projects/create", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ userId: String(userId), projectId, token: userToken || "" }),
+        });
+        const data = await response.json().catch(() => null);
+        const path = typeof data?.path === "string" ? data.path : "";
+        if (!response.ok || data?.ok !== true || !path) {
+          throw new Error(typeof data?.error === "string" ? data.error : `HTTP ${response.status}`);
+        }
+        setWorkspaceDirectory(path);
+      } catch {
+        setWorkspaceDirectory(undefined);
+        setError(t("chat.error_workspace_create_failed"));
+      }
+    })();
+  }, [projectId, t, userId, userToken]);
+
+  const opencodeClient = useMemo(() => createOpencodeClientForDirectory(workspaceDirectory), [workspaceDirectory]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -59,11 +93,19 @@ export function useOpencodeChat({
 
   const isSubscribedRef = useRef(false);
   const isInitializingRef = useRef(false);
+  const bootstrapKeyRef = useRef<string | null>(null);
   const autoTitledSessionsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setTodos([]);
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionStorageKey) return;
+    try {
+      if (sessionId) localStorage.setItem(sessionStorageKey, sessionId);
+    } catch {}
+  }, [sessionId, sessionStorageKey]);
 
   const buildSessionTitle = (text: string) => {
     const normalized = text.replace(/\s+/g, " ").trim();
@@ -148,11 +190,7 @@ export function useOpencodeChat({
       setIsLoading(false);
       isInitializingRef.current = false;
     }
-  }, [directory, opencodeClient, t, userToken]);
-
-  useEffect(() => {
-    void initSession();
-  }, [initSession]);
+  }, [opencodeClient, projectId, t, userId, userToken]);
 
   const normalizeTodos = useCallback((value: unknown): TodoItem[] => {
     if (!Array.isArray(value)) return [];
@@ -164,23 +202,6 @@ export function useOpencodeChat({
       }))
       .filter(t => t.content.trim().length > 0);
   }, []);
-
-  const checkHealth = useCallback(async () => {
-    try {
-      const response = await opencodeClient.config.get();
-      const online = !!response.data;
-      if (online && !sessionId && !isLoading && !isInitializingRef.current) {
-        void initSession();
-      }
-      setIsOnline(online);
-    } catch {
-      setIsOnline(false);
-    }
-  }, [initSession, isLoading, opencodeClient.config, sessionId]);
-
-  useEffect(() => {
-    void checkHealth();
-  }, [checkHealth]);
 
   const fetchConfig = async () => {
     try {
@@ -283,7 +304,7 @@ export function useOpencodeChat({
     return `会话错误：${JSON.stringify(rawError)}`;
   };
 
-  const normalizePartForUI = (rawPart: any): Part | null => {
+  const normalizePartForUI = useCallback((rawPart: any): Part | null => {
     if (!rawPart?.type) return null;
 
     if (rawPart.type === "text") {
@@ -345,7 +366,7 @@ export function useOpencodeChat({
     }
 
     return null;
-  };
+  }, []);
 
   const fetchSessionHistory = async () => {
     setIsHistoryLoading(true);
@@ -362,7 +383,7 @@ export function useOpencodeChat({
     }
   };
 
-  const loadHistorySession = async (targetSessionId: string) => {
+  const loadHistorySession = useCallback(async (targetSessionId: string) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -401,7 +422,59 @@ export function useOpencodeChat({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [normalizePartForUI, opencodeClient.session, t]);
+
+  const bootstrapSession = useCallback(async () => {
+    if (userId && projectId && !workspaceDirectory) return;
+    const bootstrapKey = sessionStorageKey ?? "__no_session_storage_key__";
+    if (bootstrapKeyRef.current === bootstrapKey) return;
+    bootstrapKeyRef.current = bootstrapKey;
+
+    setMessages([]);
+    setTodos([]);
+    setError(null);
+    setHistoryError(null);
+    setIsOnline(null);
+    setSessionId(null);
+
+    let savedSessionId: string | null = null;
+    if (sessionStorageKey) {
+      try {
+        savedSessionId = localStorage.getItem(sessionStorageKey);
+      } catch {}
+    }
+
+    if (savedSessionId) {
+      const ok = await loadHistorySession(savedSessionId);
+      if (ok) return;
+      try {
+        localStorage.removeItem(sessionStorageKey!);
+      } catch {}
+    }
+
+    await initSession();
+  }, [initSession, loadHistorySession, projectId, sessionStorageKey, userId, workspaceDirectory]);
+
+  useEffect(() => {
+    void bootstrapSession();
+  }, [bootstrapSession]);
+
+  const checkHealth = useCallback(async () => {
+    try {
+      const response = await opencodeClient.config.get();
+      const online = !!response.data;
+      if (online && !sessionId && !isLoading && !isInitializingRef.current) {
+        void bootstrapSession();
+      }
+      setIsOnline(online);
+    } catch {
+      setIsOnline(false);
+    }
+  }, [bootstrapSession, isLoading, opencodeClient.config, sessionId]);
+
+  useEffect(() => {
+    void checkHealth();
+  }, [checkHealth]);
 
   const deleteHistorySession = async (targetSessionId: string) => {
     const ok = confirm(t("chat.history_delete_confirm"));

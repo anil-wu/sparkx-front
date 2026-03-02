@@ -243,6 +243,7 @@
     "followup_message": "I'll generate a 3-view sheet for this character in a neutral battle stance, with a white background.",
     "input_placeholder": "Describe your design request",
     "error_session_failed": "Failed to initialize session, please check OpenCode server connection",
+    "error_workspace_create_failed": "Failed to initialize workspace directory, please check workspace_manage service connection",
     "error_send_failed": "Failed to send message, please try again",
     "new_chat": "New Chat",
     "new_chat_confirm": "Are you sure you want to start a new chat? Current chat history will be cleared.",
