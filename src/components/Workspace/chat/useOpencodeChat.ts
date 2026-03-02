@@ -29,11 +29,65 @@ export function useOpencodeChat({
   const [workspaceDirectory, setWorkspaceDirectory] = useState<string | undefined>(undefined);
   const workspaceDirectoryKeyRef = useRef<string | null>(null);
 
+  const userKey = userId ? String(userId) : "anon";
+  const sessionProjectIndexStorageKey = useMemo(() => `sparkplay:chat:sessionProjectIndex:${userKey}`, [userKey]);
+
   const sessionStorageKey = useMemo(() => {
     if (!projectId) return null;
-    const userKey = userId ? String(userId) : "anon";
     return `sparkplay:chat:lastSession:${userKey}:${projectId}`;
-  }, [projectId, userId]);
+  }, [projectId, userKey]);
+
+  const readStorageJson = useCallback(<T,>(key: string, fallback: T): T => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw) as T;
+      return parsed ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }, []);
+
+  const writeStorageJson = useCallback((key: string, value: unknown) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  }, []);
+
+  const persistSessionAssociation = useCallback(
+    (targetSessionId: string, pid: string | undefined) => {
+      if (!pid) return;
+
+      const index = readStorageJson<Record<string, string>>(sessionProjectIndexStorageKey, {});
+      if (index[targetSessionId] !== pid) {
+        index[targetSessionId] = pid;
+        writeStorageJson(sessionProjectIndexStorageKey, index);
+      }
+
+      const listKey = `sparkplay:chat:projectSessions:${userKey}:${pid}`;
+      const list = readStorageJson<string[]>(listKey, []);
+      const next = [targetSessionId, ...list.filter(id => id !== targetSessionId)].slice(0, 100);
+      writeStorageJson(listKey, next);
+    },
+    [readStorageJson, sessionProjectIndexStorageKey, userKey, writeStorageJson],
+  );
+
+  const removeSessionAssociation = useCallback(
+    (targetSessionId: string) => {
+      const index = readStorageJson<Record<string, string>>(sessionProjectIndexStorageKey, {});
+      const pid = index[targetSessionId];
+      if (pid) {
+        delete index[targetSessionId];
+        writeStorageJson(sessionProjectIndexStorageKey, index);
+
+        const listKey = `sparkplay:chat:projectSessions:${userKey}:${pid}`;
+        const list = readStorageJson<string[]>(listKey, []);
+        const next = list.filter(id => id !== targetSessionId);
+        writeStorageJson(listKey, next);
+      }
+    },
+    [readStorageJson, sessionProjectIndexStorageKey, userKey, writeStorageJson],
+  );
 
   useEffect(() => {
     if (!userId || !projectId) {
@@ -160,6 +214,7 @@ export function useOpencodeChat({
       const response = await opencodeClient.session.create({});
       if (!response.data?.id) throw new Error("No session ID returned");
       const newSessionId = response.data.id;
+      persistSessionAssociation(newSessionId, projectId);
       setSessionId(newSessionId);
       setMessages([]);
 
@@ -190,7 +245,7 @@ export function useOpencodeChat({
       setIsLoading(false);
       isInitializingRef.current = false;
     }
-  }, [opencodeClient, projectId, t, userId, userToken]);
+  }, [opencodeClient, persistSessionAssociation, projectId, t, userId, userToken]);
 
   const normalizeTodos = useCallback((value: unknown): TodoItem[] => {
     if (!Array.isArray(value)) return [];
@@ -375,7 +430,64 @@ export function useOpencodeChat({
       const response = await opencodeClient.session.list({ limit: 50 });
       const sessions = (response.data || []) as Array<{ id: string; title: string; time?: { created: number; updated: number } }>;
       const sorted = [...sessions].sort((a, b) => (b.time?.updated || 0) - (a.time?.updated || 0));
-      setHistorySessions(sorted.slice(0, 50));
+      if (!projectId) {
+        setHistorySessions(sorted.slice(0, 50));
+        return;
+      }
+
+      const inferBelongsToProject = async (targetSessionId: string, pid: string) => {
+        try {
+          const res = await opencodeClient.session.messages({ sessionID: targetSessionId, limit: 20 });
+          const items = (res.data || []) as Array<{ parts?: any[] }>;
+          for (const item of items) {
+            const parts = Array.isArray(item?.parts) ? item.parts : [];
+            for (const part of parts) {
+              if (!part || typeof part !== "object") continue;
+              const type = (part as any).type;
+              if (type !== "text" && type !== "reasoning") continue;
+              const rawText = (part as any).text;
+              const text =
+                typeof rawText === "string" ? rawText : Array.isArray(rawText) ? rawText.filter(Boolean).join("") : rawText ? String(rawText) : "";
+              if (!text) continue;
+              if (text.includes(`projectId：${pid}`) || text.includes(`projectId:${pid}`)) return true;
+            }
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      };
+
+      const index = readStorageJson<Record<string, string>>(sessionProjectIndexStorageKey, {});
+      const unknown = sorted.filter(s => index[s.id] === undefined || index[s.id] === "__unknown__");
+
+      if (unknown.length > 0) {
+        const queue = [...unknown];
+        const concurrency = 5;
+        const workers = Array.from({ length: Math.min(concurrency, queue.length) }, () =>
+          (async () => {
+            while (queue.length > 0) {
+              const next = queue.shift();
+              if (!next) return;
+              const ok = await inferBelongsToProject(next.id, projectId);
+              if (ok) {
+                persistSessionAssociation(next.id, projectId);
+              } else {
+                const cur = readStorageJson<Record<string, string>>(sessionProjectIndexStorageKey, {});
+                if (cur[next.id] === undefined || cur[next.id] === "__unknown__") {
+                  cur[next.id] = "__unknown__";
+                  writeStorageJson(sessionProjectIndexStorageKey, cur);
+                }
+              }
+            }
+          })(),
+        );
+        await Promise.all(workers);
+      }
+
+      const refreshedIndex = readStorageJson<Record<string, string>>(sessionProjectIndexStorageKey, {});
+      const filtered = sorted.filter(s => refreshedIndex[s.id] === projectId);
+      setHistorySessions(filtered.slice(0, 50));
     } catch {
       setHistoryError(t("chat.history_load_failed"));
     } finally {
@@ -415,6 +527,7 @@ export function useOpencodeChat({
 
       setSessionId(targetSessionId);
       setMessages(nextMessages);
+      persistSessionAssociation(targetSessionId, projectId);
       return true;
     } catch {
       setError(t("chat.history_session_load_failed"));
@@ -422,7 +535,7 @@ export function useOpencodeChat({
     } finally {
       setIsLoading(false);
     }
-  }, [normalizePartForUI, opencodeClient.session, t]);
+  }, [normalizePartForUI, opencodeClient.session, persistSessionAssociation, projectId, t]);
 
   const bootstrapSession = useCallback(async () => {
     if (userId && projectId && !workspaceDirectory) return;
@@ -485,6 +598,7 @@ export function useOpencodeChat({
     try {
       await opencodeClient.session.delete({ sessionID: targetSessionId });
 
+        removeSessionAssociation(targetSessionId);
       setHistorySessions(prev => prev.filter(s => s.id !== targetSessionId));
 
       if (targetSessionId === sessionId) {
