@@ -214,10 +214,17 @@
   "project_info": {
     "loading": "加载中...",
     "load_failed": "加载项目失败",
+    "edit": "编辑",
+    "save": "保存",
+    "saving": "保存中...",
     "description": "项目描述",
     "no_description": "暂无描述",
     "created_at_label": "创建时间",
     "updated_at_label": "更新时间",
+    "change_cover": "点击更换封面",
+    "uploading_cover": "上传封面中...",
+    "upload_cover_failed": "封面上传失败",
+    "save_failed": "保存失败",
     "view_details": "查看详情",
     "edit_project": "编辑项目",
     "settings": "设置"

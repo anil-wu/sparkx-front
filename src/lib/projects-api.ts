@@ -81,6 +81,7 @@ export const listProjects = async (
   const data = await requestJson<ProjectsListResponse>(
     `/api/projects?page=${page}&pageSize=${pageSize}`,
   );
+  console.log("listProjects--->",data);
   return data.list;
 };
 

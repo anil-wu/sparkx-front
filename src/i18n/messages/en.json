@@ -214,10 +214,17 @@
   "project_info": {
     "loading": "Loading...",
     "load_failed": "Failed to load project",
+    "edit": "Edit",
+    "save": "Save",
+    "saving": "Saving...",
     "description": "Description",
     "no_description": "No description provided",
     "created_at_label": "Created at",
     "updated_at_label": "Updated at",
+    "change_cover": "Click to change cover",
+    "uploading_cover": "Uploading cover...",
+    "upload_cover_failed": "Cover upload failed",
+    "save_failed": "Save failed",
     "view_details": "View details",
     "edit_project": "Edit project",
     "settings": "Settings"

@@ -244,6 +244,7 @@ export default function UserHome({ session }: UserHomeProps) {
                         src={project.coverImage}
                         alt={project.name}
                         fill
+                        unoptimized
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     ) : (
