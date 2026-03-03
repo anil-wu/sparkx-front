@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/i18n/client";
 import type { SparkxSession } from "@/lib/sparkx-session";
 
 type ModelType = "llm" | "vlm" | "embedding";
@@ -90,6 +91,7 @@ const writeStoredConfig = (storageKey: string, config: StoredConfig) => {
 };
 
 export default function UserSettings({ session }: { session: SparkxSession }) {
+  const { t } = useI18n();
   const storageKey = useMemo(() => `${STORAGE_KEY_PREFIX}:${session.userId}`, [session.userId]);
 
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
@@ -313,7 +315,9 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
     <div className="space-y-6">
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle className="text-xl">设置</CardTitle>
+          <CardTitle className="text-xl">
+            {session.isSuper ? t("user_home.settings_admin_title") : t("user_home.settings_title")}
+          </CardTitle>
           <CardDescription>管理模型提供商与模型信息（仅保存在当前浏览器）。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

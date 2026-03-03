@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import LanguageSwitcher from "@/components/I18n/LanguageSwitcher";
@@ -38,6 +38,12 @@ export default function DashboardHeader({ session }: DashboardHeaderProps) {
         <p className="mt-2 text-base text-slate-600">
           {t("user_home.subtitle")}
         </p>
+        {session.isSuper ? (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+            <ShieldCheck size={16} />
+            <span>{t("user_home.super_admin_notice")}</span>
+          </div>
+        ) : null}
       </div>
       <div className="flex items-center gap-3">
         <LanguageSwitcher />

@@ -7,6 +7,7 @@ type SparkxLoginResponse = {
   userId: number;
   created: boolean;
   token: string;
+  isSuper: boolean;
 };
 
 const parseBody = async (
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
     email: body.email,
     username,
     accessToken: result.data.token,
+    isSuper: result.data.isSuper,
   }, {
     secure: getSparkxSessionCookieSecure(request.headers),
   });

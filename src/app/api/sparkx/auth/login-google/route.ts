@@ -7,6 +7,7 @@ type SparkxGoogleLoginResponse = {
   userId: number;
   created: boolean;
   token: string;
+  isSuper?: boolean;
 };
 
 type SparkxUserProfile = {
@@ -125,6 +126,7 @@ export async function POST(request: Request) {
     userId: result.data.userId,
     created: result.data.created,
     username,
+    isSuper: result.data.isSuper ?? false,
   });
 
   applySparkxSessionCookie(response, {
@@ -132,6 +134,7 @@ export async function POST(request: Request) {
     email: sessionEmail,
     username,
     accessToken: result.data.token,
+    isSuper: result.data.isSuper ?? false,
   }, {
     secure: getSparkxSessionCookieSecure(request.headers),
   });

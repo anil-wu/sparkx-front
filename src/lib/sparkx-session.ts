@@ -6,6 +6,7 @@ export type SparkxSession = {
   email: string;
   username?: string;
   accessToken: string;
+  isSuper: boolean;
 };
 
 type HeaderCarrier = {
@@ -61,6 +62,7 @@ const encodeSessionToken = (session: SparkxSession): string => {
       email: session.email,
       username: session.username,
       accessToken: session.accessToken,
+      isSuper: session.isSuper,
       iat: Date.now(),
     }),
   );
@@ -88,6 +90,7 @@ const decodeSessionToken = (token: string): SparkxSession | null => {
       email?: unknown;
       username?: unknown;
       accessToken?: unknown;
+      isSuper?: unknown;
     };
 
     if (
@@ -107,6 +110,7 @@ const decodeSessionToken = (token: string): SparkxSession | null => {
           ? parsed.username
           : undefined,
       accessToken: parsed.accessToken.trim(),
+      isSuper: parsed.isSuper === true,
     };
   } catch {
     return null;

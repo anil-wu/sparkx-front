@@ -307,6 +307,9 @@
   "user_home": {
     "welcome": "Welcome back, {name}",
     "subtitle": "Start your creative journey and explore unlimited possibilities",
+    "super_admin_notice": "You are signed in as a super administrator",
+    "settings_title": "Settings",
+    "settings_admin_title": "Admin Settings",
     "stats": {
       "projects": "projects",
       "active_days": "active days",

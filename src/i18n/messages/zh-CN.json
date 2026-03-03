@@ -307,6 +307,9 @@
   "user_home": {
     "welcome": "欢迎回来，{name}",
     "subtitle": "开始你的创意之旅，探索无限可能",
+    "super_admin_notice": "你正在以超级管理员身份登录",
+    "settings_title": "设置",
+    "settings_admin_title": "管理系统设置",
     "stats": {
       "projects": "个项目",
       "active_days": "活跃天数",
