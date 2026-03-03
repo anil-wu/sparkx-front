@@ -26,6 +26,15 @@ export interface DownloadFileResponse {
   expiresAt: string;
 }
 
+export interface PagedResponse<T> {
+  list: T[];
+  page: {
+    page: number;
+    pageSize: number;
+    total: number;
+  };
+}
+
 export const fileAPI = {
   /**
    * 预上传文件，获取 OSS 上传 URL
@@ -133,6 +142,29 @@ export const fileAPI = {
     }
 
     return (await response.json()) as DownloadFileResponse;
+  },
+
+  listProjectFiles: async (
+    projectId: number,
+    options?: { page?: number; pageSize?: number },
+  ): Promise<PagedResponse<ProjectFileItem>> => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("page", String(options?.page && options.page > 0 ? options.page : 1));
+    searchParams.set(
+      "pageSize",
+      String(options?.pageSize && options.pageSize > 0 ? options.pageSize : 200),
+    );
+    const response = await fetch(`/api/projects/${projectId}/files?${searchParams.toString()}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `List files failed with status ${response.status}`);
+    }
+
+    return (await response.json()) as PagedResponse<ProjectFileItem>;
   },
 
   /**

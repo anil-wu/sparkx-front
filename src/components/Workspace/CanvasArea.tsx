@@ -549,6 +549,7 @@ export default function CanvasArea({
           <HierarchyPanel
             isCollapsed={isHierarchyCollapsed}
             toggleSidebar={() => setIsHierarchyCollapsed(!isHierarchyCollapsed)}
+            projectId={finalProjectId}
           />
         </div>
 
