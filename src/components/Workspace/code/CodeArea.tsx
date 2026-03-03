@@ -927,6 +927,112 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
     [projectId, userId, workspaceMgrBaseUrl, workspaceRoot],
   );
 
+  const handleFileSelect = useCallback(
+    (filePath: string) => {
+      setSelectedFilePath(filePath);
+      void loadFile(filePath);
+    },
+    [loadFile],
+  );
+
+  const createFolder = useCallback(
+    async (parentPath: string, name: string) => {
+      if (!projectId || !userId) return;
+      const response = await fetch(`${workspaceMgrBaseUrl}/api/projects/mkdir`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          userId: String(userId),
+          projectId,
+          root: workspaceRoot,
+          parentPath,
+          name,
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok !== true) {
+        throw new Error(typeof data?.error === "string" ? data.error : `HTTP ${response.status}`);
+      }
+      await loadTree();
+    },
+    [loadTree, projectId, userId, workspaceMgrBaseUrl, workspaceRoot],
+  );
+
+  const createFile = useCallback(
+    async (parentPath: string, name: string) => {
+      if (!projectId || !userId) return;
+      const response = await fetch(`${workspaceMgrBaseUrl}/api/projects/write`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          userId: String(userId),
+          projectId,
+          root: workspaceRoot,
+          parentPath,
+          name,
+          content: "",
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok !== true) {
+        throw new Error(typeof data?.error === "string" ? data.error : `HTTP ${response.status}`);
+      }
+      const createdPath = typeof data?.path === "string" ? data.path : parentPath ? `${parentPath}/${name}` : name;
+      await loadTree();
+      handleFileSelect(createdPath);
+    },
+    [handleFileSelect, loadTree, projectId, userId, workspaceMgrBaseUrl, workspaceRoot],
+  );
+
+  const downloadFile = useCallback(
+    (relativePath: string) => {
+      if (!projectId || !userId) return;
+      const url =
+        `${workspaceMgrBaseUrl}/api/projects/file/raw?userId=${encodeURIComponent(String(userId))}` +
+        `&projectId=${encodeURIComponent(projectId)}` +
+        `&root=${encodeURIComponent(workspaceRoot)}` +
+        `&path=${encodeURIComponent(relativePath)}` +
+        `&maxBytes=${encodeURIComponent(String(200 * 1024 * 1024))}` +
+        `&download=1`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    [projectId, userId, workspaceMgrBaseUrl, workspaceRoot],
+  );
+
+  const downloadFolder = useCallback(
+    (folderPath: string) => {
+      if (!projectId || !userId) return;
+      const url =
+        `${workspaceMgrBaseUrl}/api/projects/folder/archive?userId=${encodeURIComponent(String(userId))}` +
+        `&projectId=${encodeURIComponent(projectId)}` +
+        `&root=${encodeURIComponent(workspaceRoot)}` +
+        `&path=${encodeURIComponent(folderPath)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    [projectId, userId, workspaceMgrBaseUrl, workspaceRoot],
+  );
+
+  const uploadFiles = useCallback(
+    async (parentPath: string, files: File[]) => {
+      if (!projectId || !userId) return;
+      const form = new FormData();
+      for (const f of files) form.append("files", f, f.name);
+
+      const response = await fetch(
+        `${workspaceMgrBaseUrl}/api/projects/upload?userId=${encodeURIComponent(String(userId))}&projectId=${encodeURIComponent(projectId)}&root=${encodeURIComponent(workspaceRoot)}&parentPath=${encodeURIComponent(parentPath)}`,
+        { method: "POST", body: form },
+      );
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok !== true) {
+        throw new Error(typeof data?.error === "string" ? data.error : `HTTP ${response.status}`);
+      }
+      const uploaded = Array.isArray(data?.files) ? data.files.filter((x: unknown) => typeof x === "string") : [];
+      await loadTree();
+      if (uploaded.length > 0) handleFileSelect(uploaded[0]);
+    },
+    [handleFileSelect, loadTree, projectId, userId, workspaceMgrBaseUrl, workspaceRoot],
+  );
+
   useEffect(() => {
     if (!canLoadWorkspace) {
       setTree(null);
@@ -940,14 +1046,6 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
     }
     void loadTree();
   }, [canLoadWorkspace, loadTree]);
-
-  const handleFileSelect = useCallback(
-    (filePath: string) => {
-      setSelectedFilePath(filePath);
-      void loadFile(filePath);
-    },
-    [loadFile],
-  );
 
   const rightHeader = useMemo(() => {
     if (!selectedFilePath) return null;
@@ -1010,6 +1108,11 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
           selectedFilePath={selectedFilePath}
           onRefresh={loadTree}
           onFileSelect={handleFileSelect}
+          onCreateFolder={createFolder}
+          onCreateFile={createFile}
+          onDownloadFile={downloadFile}
+          onDownloadFolder={downloadFolder}
+          onUploadFiles={uploadFiles}
         />
       </div>
 
