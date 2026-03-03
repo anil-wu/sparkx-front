@@ -253,7 +253,7 @@
     "generate_three_view_white_bg": "生成三视图，背景白色",
     "followup_message": "我来为您生成这个端正战力姿势角色的三视图，背景设为白色。",
     "input_placeholder": "请输入你的设计需求",
-    "error_session_failed": "初始化会话失败，请检查 OpenCode 服务器连接",
+    "error_session_failed": "初始化会话失败，请检查 Agent 服务器连接",
     "error_workspace_create_failed": "初始化工作目录失败，请检查 workspace_manage 服务连接",
     "error_send_failed": "发送消息失败，请重试",
     "new_chat": "开启新对话",
