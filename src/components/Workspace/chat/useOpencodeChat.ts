@@ -31,6 +31,14 @@ export function useOpencodeChat({
 
   const userKey = userId ? String(userId) : "anon";
   const sessionProjectIndexStorageKey = useMemo(() => `sparkplay:chat:sessionProjectIndex:${userKey}`, [userKey]);
+  const sessionModelStorageKeyPrefix = useMemo(
+    () => `sparkplay:chat:sessionModel:${userKey}:${projectId ?? "__no_project__"}`,
+    [projectId, userKey],
+  );
+  const agentModeStorageKey = useMemo(
+    () => `sparkplay:chat:agentMode:${userKey}:${projectId ?? "__no_project__"}`,
+    [projectId, userKey],
+  );
 
   const sessionStorageKey = useMemo(() => {
     if (!projectId) return null;
@@ -53,6 +61,34 @@ export function useOpencodeChat({
       localStorage.setItem(key, JSON.stringify(value));
     } catch {}
   }, []);
+
+  type SessionModelSelection = { providerID: string; modelID: string };
+
+  const getSessionModelStorageKey = useCallback(
+    (targetSessionId: string) => `${sessionModelStorageKeyPrefix}:${targetSessionId}`,
+    [sessionModelStorageKeyPrefix],
+  );
+
+  const readSessionModelSelection = useCallback(
+    (targetSessionId: string | null): SessionModelSelection | null => {
+      if (!targetSessionId) return null;
+      const key = getSessionModelStorageKey(targetSessionId);
+      const raw = readStorageJson<unknown>(key, null);
+      const providerID = typeof (raw as any)?.providerID === "string" ? String((raw as any).providerID) : "";
+      const modelID = typeof (raw as any)?.modelID === "string" ? String((raw as any).modelID) : "";
+      if (!providerID || !modelID) return null;
+      return { providerID, modelID };
+    },
+    [getSessionModelStorageKey, readStorageJson],
+  );
+
+  const writeSessionModelSelection = useCallback(
+    (targetSessionId: string, selection: SessionModelSelection) => {
+      const key = getSessionModelStorageKey(targetSessionId);
+      writeStorageJson(key, selection);
+    },
+    [getSessionModelStorageKey, writeStorageJson],
+  );
 
   const persistSessionAssociation = useCallback(
     (targetSessionId: string, pid: string | undefined) => {
@@ -132,6 +168,16 @@ export function useOpencodeChat({
   const [provider, setProvider] = useState("openrouter");
   const [apiKey, setApiKey] = useState("");
   const [modelId, setModelId] = useState("qwen/qwen-max");
+  const [configProviderID, setConfigProviderID] = useState<string | null>(null);
+  const [configModelID, setConfigModelID] = useState<string | null>(null);
+  const [agentMode, setAgentMode] = useState<"plan" | "build">(() => {
+    try {
+      const raw = localStorage.getItem(agentModeStorageKey);
+      return raw === "plan" || raw === "build" ? raw : "build";
+    } catch {
+      return "build";
+    }
+  });
   const [availableProviders, setAvailableProviders] = useState<any[]>([]);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsFeedback, setSettingsFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -153,6 +199,15 @@ export function useOpencodeChat({
   useEffect(() => {
     setTodos([]);
   }, [sessionId]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(agentModeStorageKey);
+      setAgentMode(raw === "plan" || raw === "build" ? raw : "build");
+    } catch {
+      setAgentMode("build");
+    }
+  }, [agentModeStorageKey]);
 
   useEffect(() => {
     if (!sessionStorageKey) return;
@@ -258,27 +313,76 @@ export function useOpencodeChat({
       .filter(t => t.content.trim().length > 0);
   }, []);
 
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
+    if (userId && projectId && !workspaceDirectory) return;
     try {
       const configResponse = await opencodeClient.config.get();
-      if (configResponse.data) {
-        const fullModel = configResponse.data.model || "";
-        if (fullModel.includes("/")) {
-          const [p, m] = fullModel.split("/");
-          setProvider(p);
-          setModelId(m);
+      const config = (configResponse as any)?.data;
+
+      const fullModel = typeof config?.model === "string" ? config.model : "";
+      if (fullModel) {
+        const [p, ...rest] = fullModel.split("/");
+        const m = rest.join("/");
+        if (p && m) {
+          setConfigProviderID(p);
+          setConfigModelID(m);
+        }
+      } else {
+        const providerConfig = config?.provider;
+        if (providerConfig && typeof providerConfig === "object") {
+          const ids = Object.keys(providerConfig);
+          if (ids.length > 0) {
+            const nextProvider = ids[0]!;
+            setConfigProviderID(nextProvider);
+            const models = (providerConfig as any)?.[nextProvider]?.models;
+            if (models && typeof models === "object") {
+              const firstModel = Object.keys(models)[0];
+              if (firstModel) setConfigModelID(firstModel);
+            }
+          }
         }
       }
 
       const providersResponse = await opencodeClient.config.providers();
-      if (providersResponse.data?.providers) {
-        console.log("providersResponse.data.providers", providersResponse.data.providers);
-        setAvailableProviders(providersResponse.data.providers);
+      const list = providersResponse.data?.providers;
+      if (Array.isArray(list)) {
+        setAvailableProviders(list);
+      } else if (config?.provider && typeof config.provider === "object") {
+        const fallback = Object.entries(config.provider as Record<string, any>).map(([id, cfg]) => ({
+          id,
+          name: id,
+          ...(cfg || {}),
+        }));
+        setAvailableProviders(fallback);
       }
     } catch {
       return;
     }
-  };
+  }, [opencodeClient, projectId, userId, workspaceDirectory]);
+
+  useEffect(() => {
+    if (!configProviderID || !configModelID) return;
+    if (!sessionId) {
+      setProvider(configProviderID);
+      setModelId(configModelID);
+      return;
+    }
+
+    const selection = readSessionModelSelection(sessionId);
+    if (selection) {
+      setProvider(selection.providerID);
+      setModelId(selection.modelID);
+    } else {
+      setProvider(configProviderID);
+      setModelId(configModelID);
+    }
+  }, [configModelID, configProviderID, readSessionModelSelection, sessionId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(agentModeStorageKey, agentMode);
+    } catch {}
+  }, [agentMode, agentModeStorageKey]);
 
   const fetchAgents = useCallback(async () => {
     setIsAgentsLoading(true);
@@ -589,6 +693,10 @@ export function useOpencodeChat({
     void checkHealth();
   }, [checkHealth]);
 
+  useEffect(() => {
+    void fetchConfig();
+  }, [fetchConfig]);
+
   const deleteHistorySession = async (targetSessionId: string) => {
     const ok = confirm(t("chat.history_delete_confirm"));
     if (!ok) return false;
@@ -626,26 +734,18 @@ export function useOpencodeChat({
     return true;
   };
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (nextProvider?: string, nextModelId?: string) => {
     setIsSavingSettings(true);
     setSettingsFeedback(null);
     try {
-      if (apiKey) {
-        await opencodeClient.auth.set({
-          providerID: provider,
-          auth: { type: "api", key: apiKey },
-        });
-      }
+      const effectiveProvider = typeof nextProvider === "string" && nextProvider.trim() ? nextProvider.trim() : provider;
+      const effectiveModelId = typeof nextModelId === "string" && nextModelId.trim() ? nextModelId.trim() : modelId;
 
-      await opencodeClient.config.update({
-        config: { model: `${provider}/${modelId}` },
-      });
-
+      if (!sessionId) throw new Error("Missing sessionId");
+      writeSessionModelSelection(sessionId, { providerID: effectiveProvider, modelID: effectiveModelId });
+      if (effectiveProvider !== provider) setProvider(effectiveProvider);
+      if (effectiveModelId !== modelId) setModelId(effectiveModelId);
       setSettingsFeedback({ type: "success", message: t("chat.settings_saved") });
-
-      if (messages.length === 0) {
-        void initSession();
-      }
 
       return true;
     } catch {
@@ -985,9 +1085,15 @@ export function useOpencodeChat({
     setError(null);
     try {
       void ensureSessionTitle(sessionId, seedText);
-      opencodeClient.session.prompt({
+      const selection =
+        readSessionModelSelection(sessionId) ??
+        (configProviderID && configModelID ? { providerID: configProviderID, modelID: configModelID } : null);
+      console.log("selection", selection);
+      await opencodeClient.session.prompt({
         sessionID: sessionId,
         parts: [{ type: "text", text: seedText }],
+        agent: agentMode,
+        ...(selection ? { model: selection } : {}),
       });
       return true;
     } catch {
@@ -1023,6 +1129,8 @@ export function useOpencodeChat({
     setApiKey,
     modelId,
     setModelId,
+    agentMode,
+    setAgentMode,
     availableProviders,
     isSavingSettings,
     settingsFeedback,

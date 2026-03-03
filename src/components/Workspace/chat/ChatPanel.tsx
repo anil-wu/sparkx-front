@@ -87,8 +87,26 @@ export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId,
         inputValue={inputValue}
         onChange={setInputValue}
         onSend={handleSend}
+        onOpenModel={() => {
+          setShowSettings(true);
+          void chat.fetchConfig();
+        }}
+        modelLabel={`${chat.provider}/${chat.modelId}`}
         isLoading={chat.isLoading}
         placeholder={t("chat.input_placeholder")}
+        availableProviders={chat.availableProviders}
+        agentMode={chat.agentMode}
+        onAgentModeChange={mode => chat.setAgentMode(mode)}
+        onOpenDropdown={() => {
+          if (chat.availableProviders.length === 0) {
+            void chat.fetchConfig();
+          }
+        }}
+        onModelSelect={(provider, modelId) => {
+          chat.setProvider(provider);
+          chat.setModelId(modelId);
+          void chat.handleSaveSettings(provider, modelId);
+        }}
       />
 
       {showSettings && (
@@ -103,7 +121,7 @@ export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId,
           isSaving={chat.isSavingSettings}
           feedback={chat.settingsFeedback}
           onSave={async () => {
-            const ok = await chat.handleSaveSettings();
+            const ok = await chat.handleSaveSettings(chat.provider, chat.modelId);
             if (ok) setTimeout(() => setShowSettings(false), 1500);
           }}
           onClose={() => setShowSettings(false)}
