@@ -19,6 +19,341 @@ type FileTreeNode = {
   children?: FileTreeNode[];
 };
 
+type FileViewKind = "image" | "audio" | "video" | "markdown" | "json" | "text" | "binary";
+
+type LoadedFile = {
+  path: string;
+  sizeBytes: number;
+  mime: string;
+  kind: FileViewKind;
+  content: string | null;
+  rawUrl: string;
+};
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes < 0) return "-";
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const fixed = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(fixed)} ${units[unitIndex]}`;
+}
+
+function getFileExt(p: string) {
+  const lastDot = p.lastIndexOf(".");
+  if (lastDot < 0) return "";
+  return p.slice(lastDot + 1).toLowerCase();
+}
+
+function guessKind(filePath: string, mime: string, isBinary: boolean): FileViewKind {
+  const ext = getFileExt(filePath);
+  const m = String(mime || "").toLowerCase();
+
+  if (m.startsWith("image/")) return "image";
+  if (m.startsWith("audio/")) return "audio";
+  if (m.startsWith("video/")) return "video";
+
+  if (ext === "md" || ext === "markdown") return "markdown";
+  if (ext === "json") return "json";
+
+  if (m.startsWith("text/")) return "text";
+  if (m.includes("json")) return "json";
+  if (m.includes("xml") || m.includes("yaml") || m.includes("javascript") || m.includes("typescript")) return "text";
+
+  return isBinary ? "binary" : "text";
+}
+
+type MdBlock =
+  | { type: "heading"; level: number; text: string }
+  | { type: "paragraph"; lines: string[] }
+  | { type: "ul"; items: string[] }
+  | { type: "ol"; items: string[] }
+  | { type: "blockquote"; lines: string[] }
+  | { type: "code"; lang: string; text: string };
+
+function parseMarkdownBlocks(markdown: string): MdBlock[] {
+  const lines = String(markdown || "").replaceAll("\r\n", "\n").split("\n");
+  const blocks: MdBlock[] = [];
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i] ?? "";
+
+    const fenceMatch = line.match(/^\s*```(?:\s*(\S+))?\s*$/);
+    if (fenceMatch) {
+      const lang = (fenceMatch[1] || "").trim();
+      i += 1;
+      const codeLines: string[] = [];
+      while (i < lines.length && !/^\s*```/.test(String(lines[i] ?? ""))) {
+        codeLines.push(lines[i] ?? "");
+        i += 1;
+      }
+      if (i < lines.length) i += 1;
+      blocks.push({ type: "code", lang, text: codeLines.join("\n") });
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      blocks.push({ type: "heading", level: headingMatch[1].length, text: headingMatch[2] || "" });
+      i += 1;
+      continue;
+    }
+
+    if (/^\s*$/.test(line)) {
+      i += 1;
+      continue;
+    }
+
+    if (/^\s*>\s?/.test(line)) {
+      const qLines: string[] = [];
+      while (i < lines.length && /^\s*>\s?/.test(String(lines[i] ?? ""))) {
+        qLines.push(String(lines[i] ?? "").replace(/^\s*>\s?/, ""));
+        i += 1;
+      }
+      blocks.push({ type: "blockquote", lines: qLines });
+      continue;
+    }
+
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(String(lines[i] ?? ""))) {
+        items.push(String(lines[i] ?? "").replace(/^\s*[-*]\s+/, ""));
+        i += 1;
+      }
+      blocks.push({ type: "ul", items });
+      continue;
+    }
+
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(String(lines[i] ?? ""))) {
+        items.push(String(lines[i] ?? "").replace(/^\s*\d+\.\s+/, ""));
+        i += 1;
+      }
+      blocks.push({ type: "ol", items });
+      continue;
+    }
+
+    const pLines: string[] = [];
+    while (i < lines.length) {
+      const l = String(lines[i] ?? "");
+      if (/^\s*$/.test(l)) break;
+      if (/^\s*```/.test(l)) break;
+      if (/^(#{1,6})\s+/.test(l)) break;
+      if (/^\s*>\s?/.test(l)) break;
+      if (/^\s*[-*]\s+/.test(l)) break;
+      if (/^\s*\d+\.\s+/.test(l)) break;
+      pLines.push(l);
+      i += 1;
+    }
+    blocks.push({ type: "paragraph", lines: pLines });
+  }
+
+  return blocks;
+}
+
+function renderInlineMarkdown(text: string) {
+  const nodes: React.ReactNode[] = [];
+  const s = String(text || "");
+  let i = 0;
+
+  const pushText = (v: string) => {
+    if (!v) return;
+    nodes.push(v);
+  };
+
+  while (i < s.length) {
+    const rest = s.slice(i);
+
+    if (rest.startsWith("`")) {
+      const end = rest.indexOf("`", 1);
+      if (end > 0) {
+        const code = rest.slice(1, end);
+        nodes.push(
+          <code key={`c_${i}`} className="px-1 py-0.5 rounded bg-gray-100 text-[11px] font-mono text-gray-800">
+            {code}
+          </code>,
+        );
+        i += end + 1;
+        continue;
+      }
+      pushText("`");
+      i += 1;
+      continue;
+    }
+
+    if (rest.startsWith("[")) {
+      const closeBracket = rest.indexOf("]");
+      const openParen = closeBracket > 0 ? rest.indexOf("(", closeBracket) : -1;
+      const closeParen = openParen > 0 ? rest.indexOf(")", openParen) : -1;
+      if (closeBracket > 0 && openParen === closeBracket + 1 && closeParen > openParen + 1) {
+        const label = rest.slice(1, closeBracket);
+        const url = rest.slice(openParen + 1, closeParen);
+        nodes.push(
+          <a key={`a_${i}`} href={url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-words">
+            {label || url}
+          </a>,
+        );
+        i += closeParen + 1;
+        continue;
+      }
+      pushText("[");
+      i += 1;
+      continue;
+    }
+
+    const nextSpecial = (() => {
+      const nextTick = rest.indexOf("`");
+      const nextBracket = rest.indexOf("[");
+      const candidates = [nextTick, nextBracket].filter(n => n >= 0);
+      if (candidates.length === 0) return -1;
+      return Math.min(...candidates);
+    })();
+
+    if (nextSpecial < 0) {
+      pushText(rest);
+      break;
+    }
+    if (nextSpecial === 0) {
+      pushText(rest[0] || "");
+      i += 1;
+      continue;
+    }
+    pushText(rest.slice(0, nextSpecial));
+    i += nextSpecial;
+  }
+
+  return nodes;
+}
+
+function MarkdownPreview({ content }: { content: string }) {
+  const blocks = useMemo(() => parseMarkdownBlocks(content), [content]);
+  const [forceRender, setForceRender] = useState(false);
+
+  const stats = useMemo(() => {
+    const text = String(content || "");
+    const lines = text.replaceAll("\r\n", "\n").split("\n").length;
+    return { chars: text.length, lines };
+  }, [content]);
+
+  const isLarge = stats.chars > 120_000 || stats.lines > 4_000 || blocks.length > 600;
+
+  if (isLarge && !forceRender) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Markdown 文件较大（{formatBytes(stats.chars)} · {stats.lines} 行），为避免卡顿已自动以纯文本显示。
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setForceRender(true)}
+            className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+          >
+            仍要渲染 Markdown
+          </button>
+        </div>
+        <CodePreview content={content} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-sm leading-6 text-gray-900 space-y-3">
+      {isLarge && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+          已启用 Markdown 渲染（大文件可能较慢）。{" "}
+          <button type="button" onClick={() => setForceRender(false)} className="text-blue-600 hover:text-blue-700 hover:underline">
+            切回纯文本
+          </button>
+        </div>
+      )}
+      {blocks.map((b, idx) => {
+        if (b.type === "heading") {
+          const Tag = (["h1", "h2", "h3", "h4", "h5", "h6"][Math.min(5, Math.max(0, b.level - 1))] ||
+            "h3") as keyof JSX.IntrinsicElements;
+          const size =
+            b.level === 1 ? "text-xl" : b.level === 2 ? "text-lg" : b.level === 3 ? "text-base" : "text-sm";
+          return (
+            <Tag key={idx} className={`${size} font-semibold mt-2`}>
+              {renderInlineMarkdown(b.text)}
+            </Tag>
+          );
+        }
+        if (b.type === "code") {
+          return (
+            <pre key={idx} className="text-[12px] leading-5 bg-gray-50 border border-gray-200 rounded-xl p-3 overflow-auto">
+              <code className="font-mono whitespace-pre">{b.text}</code>
+            </pre>
+          );
+        }
+        if (b.type === "blockquote") {
+          return (
+            <blockquote key={idx} className="border-l-4 border-gray-200 pl-3 text-gray-700 bg-gray-50/50 rounded-r-md py-1">
+              {b.lines.map((l, li) => (
+                <div key={li} className="whitespace-pre-wrap">
+                  {renderInlineMarkdown(l)}
+                </div>
+              ))}
+            </blockquote>
+          );
+        }
+        if (b.type === "ul") {
+          return (
+            <ul key={idx} className="list-disc pl-5 space-y-1">
+              {b.items.map((it, ii) => (
+                <li key={ii} className="whitespace-pre-wrap">
+                  {renderInlineMarkdown(it)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        if (b.type === "ol") {
+          return (
+            <ol key={idx} className="list-decimal pl-5 space-y-1">
+              {b.items.map((it, ii) => (
+                <li key={ii} className="whitespace-pre-wrap">
+                  {renderInlineMarkdown(it)}
+                </li>
+              ))}
+            </ol>
+          );
+        }
+        return (
+          <div key={idx} className="whitespace-pre-wrap">
+            {renderInlineMarkdown(b.lines.join("\n"))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CodePreview({ content }: { content: string }) {
+  const lines = useMemo(() => String(content || "").replaceAll("\r\n", "\n").split("\n"), [content]);
+  const lineDigits = useMemo(() => String(Math.max(1, lines.length)).length, [lines.length]);
+
+  return (
+    <div className="font-mono text-xs leading-5 text-gray-900">
+      {lines.map((line, idx) => (
+        <div key={idx} className="flex">
+          <div className="shrink-0 select-none text-right text-gray-400 pr-4" style={{ width: `${lineDigits + 2}ch` }}>
+            {idx + 1}
+          </div>
+          <div className="whitespace-pre min-w-0 flex-1">{line.length ? line : "\u00A0"}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, toggleSidebar, projectId, userId, userToken }: CodeAreaProps) {
   const { t } = useI18n();
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
@@ -27,7 +362,7 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
   const [treeLoading, setTreeLoading] = useState(false);
   const [treeError, setTreeError] = useState<string | null>(null);
 
-  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [loadedFile, setLoadedFile] = useState<LoadedFile | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
@@ -61,7 +396,7 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
     } finally {
       setTreeLoading(false);
     }
-  }, [projectId, userId, userToken]);
+  }, [projectId, userId, userToken, workspaceMgrBaseUrl, workspaceRoot]);
 
   const loadFile = useCallback(
     async (relativePath: string) => {
@@ -70,21 +405,35 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
       setFileError(null);
       try {
         const response = await fetch(
-          `${workspaceMgrBaseUrl}/api/projects/file?userId=${encodeURIComponent(String(userId))}&projectId=${encodeURIComponent(projectId)}&root=${encodeURIComponent(workspaceRoot)}&path=${encodeURIComponent(relativePath)}`,
+          `${workspaceMgrBaseUrl}/api/projects/file?userId=${encodeURIComponent(String(userId))}&projectId=${encodeURIComponent(projectId)}&root=${encodeURIComponent(workspaceRoot)}&path=${encodeURIComponent(relativePath)}&maxBytes=${encodeURIComponent(String(2 * 1024 * 1024))}`,
         );
         const data = await response.json().catch(() => null);
         if (!response.ok || data?.ok !== true) {
           throw new Error(typeof data?.error === "string" ? data.error : `HTTP ${response.status}`);
         }
-        setFileContent(typeof data?.content === "string" ? data.content : "");
+        const mime = typeof data?.mime === "string" ? data.mime : "application/octet-stream";
+        const sizeBytes = typeof data?.sizeBytes === "number" ? data.sizeBytes : 0;
+        const isBinary = !!data?.isBinary;
+        const kind = guessKind(relativePath, mime, isBinary);
+        const maxBytesForRaw = Math.max(20 * 1024 * 1024, Math.min(sizeBytes || 0, 200 * 1024 * 1024));
+        const rawUrl = `${workspaceMgrBaseUrl}/api/projects/file/raw?userId=${encodeURIComponent(String(userId))}&projectId=${encodeURIComponent(projectId)}&root=${encodeURIComponent(workspaceRoot)}&path=${encodeURIComponent(relativePath)}&maxBytes=${encodeURIComponent(String(maxBytesForRaw))}`;
+        const content = typeof data?.content === "string" ? data.content : "";
+        setLoadedFile({
+          path: relativePath,
+          mime,
+          sizeBytes,
+          kind,
+          content: kind === "image" || kind === "audio" || kind === "video" || kind === "binary" ? null : content,
+          rawUrl,
+        });
       } catch (e) {
-        setFileContent(null);
+        setLoadedFile(null);
         setFileError(e instanceof Error ? e.message : String(e));
       } finally {
         setFileLoading(false);
       }
     },
-    [projectId, userId],
+    [projectId, userId, workspaceMgrBaseUrl, workspaceRoot],
   );
 
   useEffect(() => {
@@ -93,7 +442,7 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
       setTreeError(null);
       setTreeLoading(false);
       setSelectedFilePath(null);
-      setFileContent(null);
+      setLoadedFile(null);
       setFileError(null);
       setFileLoading(false);
       return;
@@ -111,20 +460,51 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
 
   const rightHeader = useMemo(() => {
     if (!selectedFilePath) return null;
+    const fileLabel = loadedFile?.path === selectedFilePath ? loadedFile : null;
     return (
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 bg-white">
-        <div className="text-xs font-medium text-gray-700 truncate">{selectedFilePath}</div>
-        <button
-          type="button"
-          onClick={() => selectedFilePath && void loadFile(selectedFilePath)}
-          disabled={fileLoading}
-          className="text-xs text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-60"
-        >
-          {t("chat.history_refresh")}
-        </button>
+        <div className="min-w-0">
+          <div className="text-xs font-medium text-gray-700 truncate">{selectedFilePath}</div>
+          {fileLabel && (
+            <div className="text-[10px] text-gray-400 mt-0.5 truncate">
+              {fileLabel.mime} · {formatBytes(fileLabel.sizeBytes)}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {fileLabel?.rawUrl ? (
+            <a
+              href={fileLabel.rawUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-gray-600 hover:text-gray-800 hover:underline"
+            >
+              下载
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => selectedFilePath && void loadFile(selectedFilePath)}
+            disabled={fileLoading}
+            className="text-xs text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-60"
+          >
+            {t("chat.history_refresh")}
+          </button>
+        </div>
       </div>
     );
-  }, [fileLoading, loadFile, selectedFilePath, t]);
+  }, [fileLoading, loadFile, loadedFile, selectedFilePath, t]);
+
+  const prettyJson = useMemo(() => {
+    if (!loadedFile || loadedFile.kind !== "json") return null;
+    const raw = loadedFile.content ?? "";
+    try {
+      const obj = JSON.parse(raw);
+      return JSON.stringify(obj, null, 2);
+    } catch {
+      return raw;
+    }
+  }, [loadedFile]);
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -152,10 +532,52 @@ export default function CodeArea({ isSidebarCollapsed: _isSidebarCollapsed, togg
                 <div className="text-xs p-2 rounded-lg bg-red-50 text-red-700 border border-red-100">{fileError}</div>
               ) : fileLoading ? (
                 <div className="text-sm text-gray-500">{t("workspace.loading")}</div>
+              ) : loadedFile && loadedFile.path === selectedFilePath ? (
+                loadedFile.kind === "image" ? (
+                  <div className="w-full">
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <img src={loadedFile.rawUrl} alt={loadedFile.path} className="w-full h-auto object-contain max-h-[70vh]" loading="lazy" />
+                    </div>
+                  </div>
+                ) : loadedFile.kind === "audio" ? (
+                  <div className="space-y-3">
+                    <audio controls preload="metadata" className="w-full">
+                      <source src={loadedFile.rawUrl} />
+                    </audio>
+                    <div className="text-xs text-gray-500">{loadedFile.path}</div>
+                  </div>
+                ) : loadedFile.kind === "video" ? (
+                  <div className="space-y-3">
+                    <video controls preload="metadata" className="w-full max-h-[70vh] rounded-xl border border-gray-200 bg-black">
+                      <source src={loadedFile.rawUrl} />
+                    </video>
+                    <div className="text-xs text-gray-500">{loadedFile.path}</div>
+                  </div>
+                ) : loadedFile.kind === "markdown" ? (
+                  <MarkdownPreview content={loadedFile.content ?? ""} />
+                ) : loadedFile.kind === "json" ? (
+                  <div className="overflow-auto">
+                    <CodePreview content={prettyJson ?? ""} />
+                  </div>
+                ) : loadedFile.kind === "text" ? (
+                  <div className="overflow-auto">
+                    <CodePreview content={loadedFile.content ?? ""} />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-700">该文件为二进制格式，当前以下载/新窗口打开为主。</div>
+                    <a
+                      href={loadedFile.rawUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      打开/下载 {loadedFile.path}
+                    </a>
+                  </div>
+                )
               ) : (
-                <pre className="text-xs leading-5 whitespace-pre overflow-x-auto font-mono text-gray-900">
-                  {fileContent ?? ""}
-                </pre>
+                <div className="text-sm text-gray-500">{t("workspace.loading")}</div>
               )}
             </div>
           </>
