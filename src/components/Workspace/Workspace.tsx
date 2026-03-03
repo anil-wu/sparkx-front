@@ -83,6 +83,9 @@ export default function Workspace({
             <CodeArea 
               isSidebarCollapsed={isSidebarCollapsed}
               toggleSidebar={toggleSidebar}
+              projectId={projectId}
+              userId={userId}
+              userToken={userToken}
             />
           ) : (
             // 预览模式：只显示 GamePanel

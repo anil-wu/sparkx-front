@@ -1,163 +1,110 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useI18n } from '@/i18n/client';
-import { 
-  ChevronRight, 
-  ChevronDown, 
-  Folder, 
-  File, 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
-  LayoutGrid, 
-  List as ListIcon, 
-  Minimize2,
-  FolderOpen
-} from 'lucide-react';
+import React, { useCallback, useMemo, useState } from "react";
+import { useI18n } from "@/i18n/client";
+import { ChevronDown, ChevronRight, File, Folder, FolderOpen, Minimize2, MoreHorizontal, Plus, Search } from "lucide-react";
 
 interface ProjectPanelProps {
   isCollapsed: boolean;
   toggleSidebar: () => void;
-  onFileSelect?: (fileId: string) => void;
+  tree?: FileNode | null;
+  isLoading?: boolean;
+  error?: string | null;
+  selectedFilePath?: string | null;
+  onRefresh?: () => void;
+  onFileSelect?: (filePath: string) => void;
 }
 
 interface FileNode {
-  id: string;
+  path: string;
   name: string;
-  type: 'folder' | 'file';
+  type: "folder" | "file";
   children?: FileNode[];
-  isOpen?: boolean;
 }
 
-export default function ProjectPanel({ isCollapsed, toggleSidebar, onFileSelect }: ProjectPanelProps) {
+export default function ProjectPanel({
+  isCollapsed,
+  toggleSidebar,
+  tree,
+  isLoading,
+  error,
+  selectedFilePath,
+  onRefresh,
+  onFileSelect,
+}: ProjectPanelProps) {
   const { t } = useI18n();
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openPaths, setOpenPaths] = useState<Record<string, boolean>>({});
   
-  // Mock data
-  const [files, setFiles] = useState<FileNode[]>([
-    {
-      id: 'root-1',
-      name: 'Assets',
-      type: 'folder',
-      isOpen: true,
-      children: [
-        { 
-          id: 'assets-1', 
-          name: 'Characters', 
-          type: 'folder',
-          isOpen: false,
-          children: [
-            { id: 'char-1', name: 'Player.png', type: 'file' },
-            { id: 'char-2', name: 'Enemy.png', type: 'file' },
-          ]
-        },
-        { 
-            id: 'assets-2', 
-            name: 'Environment', 
-            type: 'folder',
-            isOpen: false,
-            children: [
-                { id: 'env-1', name: 'Ground.png', type: 'file' },
-                { id: 'env-2', name: 'Sky.jpg', type: 'file' },
-            ] 
-        },
-        {
-          id: 'root-ui',
-          name: 'UIs',
-          type: 'folder',
-          isOpen: false,
-          children: [
-            { id: 'ui-1', name: 'HUD.tsx', type: 'file' },
-            { id: 'ui-2', name: 'MainMenu.tsx', type: 'file' },
-          ]
-        },
-      ]
-    },
-    {
-      id: 'root-2',
-      name: 'Scenes',
-      type: 'folder',
-      isOpen: true,
-      children: [
-        { id: 'scene-1', name: 'MainMenu', type: 'file' },
-        { id: 'scene-2', name: 'Level1', type: 'file' },
-      ]
-    },
-    {
-      id: 'root-scripts',
-      name: 'Scripts',
-      type: 'folder',
-      isOpen: false,
-      children: [
-        { id: 'script-1', name: 'GameManager.ts', type: 'file' },
-        { id: 'script-2', name: 'PlayerController.ts', type: 'file' },
-      ]
-    },
-    { id: 'root-3', name: 'Config.json', type: 'file' },
-    { id: 'root-4', name: 'README.md', type: 'file' },
-  ]);
+  const toggleFolder = useCallback((folderPath: string) => {
+    setOpenPaths(prev => ({ ...prev, [folderPath]: !prev[folderPath] }));
+  }, []);
 
-  const toggleFolder = (id: string) => {
-    const updateNodes = (nodes: FileNode[]): FileNode[] => {
-      return nodes.map(node => {
-        if (node.id === id) {
-          return { ...node, isOpen: !node.isOpen };
-        }
-        if (node.children) {
-          return { ...node, children: updateNodes(node.children) };
-        }
-        return node;
-      });
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const effectiveTree = useMemo(() => {
+    if (!tree) return null;
+    if (!normalizedQuery) return tree;
+    const filterNode = (node: FileNode): FileNode | null => {
+      const selfMatch = node.name.toLowerCase().includes(normalizedQuery) || node.path.toLowerCase().includes(normalizedQuery);
+      if (node.type === "file") return selfMatch ? node : null;
+      const children = (node.children || []).map(filterNode).filter(Boolean) as FileNode[];
+      if (selfMatch || children.length > 0) return { ...node, children };
+      return null;
     };
-    setFiles(updateNodes(files));
-  };
+    return filterNode(tree);
+  }, [normalizedQuery, tree]);
 
-  const FileTreeItem = ({ node, level = 0 }: { node: FileNode, level?: number }) => {
-    const isFolder = node.type === 'folder';
-    const paddingLeft = level * 12 + 12;
+  const FileTreeItem = useCallback(
+    ({ node, level = 0 }: { node: FileNode; level?: number }) => {
+      const isFolder = node.type === "folder";
+      const isOpen = normalizedQuery ? true : openPaths[node.path] ?? level < 1;
+      const paddingLeft = level * 12 + 12;
+      const isSelected = node.type === "file" && selectedFilePath === node.path;
 
-    const handleClick = () => {
-      if (isFolder) {
-        toggleFolder(node.id);
-      } else {
-        onFileSelect?.(node.id);
-      }
-    };
+      const handleClick = () => {
+        if (isFolder) {
+          toggleFolder(node.path);
+        } else {
+          onFileSelect?.(node.path);
+        }
+      };
 
-    return (
-      <div className="select-none">
-        <div 
-          className={`flex items-center gap-2 py-1.5 px-2 hover:bg-gray-100 rounded-lg cursor-pointer text-sm ${searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase()) ? 'opacity-50' : ''}`}
-          style={{ paddingLeft: `${paddingLeft}px` }}
-          onClick={handleClick}
-        >
-          {isFolder ? (
-            <div className="text-gray-400">
-               {node.isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      return (
+        <div className="select-none">
+          <div
+            className={[
+              "flex items-center gap-2 py-1.5 px-2 rounded-lg cursor-pointer text-sm",
+              isSelected ? "bg-blue-50 text-blue-700" : "hover:bg-gray-100 text-gray-700",
+            ].join(" ")}
+            style={{ paddingLeft: `${paddingLeft}px` }}
+            onClick={handleClick}
+          >
+            {isFolder ? (
+              <div className="text-gray-400">{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div>
+            ) : (
+              <div className="w-3.5" />
+            )}
+
+            <div className={isFolder ? "text-blue-500" : isSelected ? "text-blue-600" : "text-gray-500"}>
+              {isFolder ? (isOpen ? <FolderOpen size={16} /> : <Folder size={16} />) : <File size={16} />}
             </div>
-          ) : (
-             <div className="w-3.5" /> // Spacer
+
+            <span className="truncate flex-1">{node.name}</span>
+          </div>
+
+          {isFolder && isOpen && node.children && node.children.length > 0 && (
+            <div>
+              {node.children.map(child => (
+                <FileTreeItem key={child.path} node={child} level={level + 1} />
+              ))}
+            </div>
           )}
-          
-          <div className={`${isFolder ? 'text-blue-500' : 'text-gray-500'}`}>
-            {isFolder ? (node.isOpen ? <FolderOpen size={16} /> : <Folder size={16} />) : <File size={16} />}
-          </div>
-          
-          <span className="text-gray-700 truncate flex-1">{node.name}</span>
         </div>
-        
-        {isFolder && node.isOpen && node.children && (
-          <div>
-            {node.children.map(child => (
-              <FileTreeItem key={child.id} node={child} level={level + 1} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+      );
+    },
+    [normalizedQuery, onFileSelect, openPaths, selectedFilePath, toggleFolder],
+  );
 
   if (isCollapsed) {
     return (
@@ -201,9 +148,22 @@ export default function ProjectPanel({ isCollapsed, toggleSidebar, onFileSelect 
 
       {/* File Tree */}
       <div className="flex-1 overflow-y-auto p-2">
-         {files.map(node => (
-            <FileTreeItem key={node.id} node={node} />
-         ))}
+        {isLoading ? (
+          <div className="text-xs text-gray-500 p-2">{t("workspace.loading")}</div>
+        ) : error ? (
+          <div className="p-2 space-y-2">
+            <div className="text-xs p-2 rounded-lg bg-red-50 text-red-700 border border-red-100">{error}</div>
+            {onRefresh && (
+              <button type="button" onClick={onRefresh} className="text-xs text-blue-600 hover:text-blue-700 hover:underline">
+                {t("chat.history_refresh")}
+              </button>
+            )}
+          </div>
+        ) : effectiveTree ? (
+          <FileTreeItem node={effectiveTree} />
+        ) : (
+          <div className="text-xs text-gray-400 p-2">{t("workspace.loading")}</div>
+        )}
       </div>
 
       {/* Footer / Toggle */}
