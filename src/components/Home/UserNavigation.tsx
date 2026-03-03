@@ -20,8 +20,8 @@ import {
 } from "@/lib/projects-api";
 
 interface UserNavigationProps {
-  activeTab?: "home" | "projects";
-  onTabChange?: (tab: "home" | "projects") => void;
+  activeTab?: "home" | "projects" | "settings";
+  onTabChange?: (tab: "home" | "projects" | "settings") => void;
 }
 
 export default function UserNavigation({
@@ -86,7 +86,7 @@ export default function UserNavigation({
     }
   };
 
-  const handleNav = (e: React.MouseEvent, tab: "home" | "projects") => {
+  const handleNav = (e: React.MouseEvent, tab: "home" | "projects" | "settings") => {
     if (onTabChange) {
       e.preventDefault();
       onTabChange(tab);
@@ -143,8 +143,13 @@ export default function UserNavigation({
         </Link>
 
         <Link
-          href="#"
-          className="group relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          href="/home"
+          onClick={(e) => handleNav(e, "settings")}
+          className={`group relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
+            activeTab === "settings"
+              ? "bg-slate-100 text-slate-700"
+              : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          }`}
           title={t("sidebar.settings")}
         >
           <Settings className="h-5 w-5" />

@@ -35,6 +35,7 @@ export function useOpencodeChat({
     () => `sparkplay:chat:sessionModel:${userKey}:${projectId ?? "__no_project__"}`,
     [projectId, userKey],
   );
+  const llmProvidersStorageKey = useMemo(() => (userId ? `sparkplay:llm:providers:v1:${userId}` : null), [userId]);
   const agentModeStorageKey = useMemo(
     () => `sparkplay:chat:agentMode:${userKey}:${projectId ?? "__no_project__"}`,
     [projectId, userKey],
@@ -345,20 +346,54 @@ export function useOpencodeChat({
 
       const providersResponse = await opencodeClient.config.providers();
       const list = providersResponse.data?.providers;
+
+      let nextProviders: any[] = [];
       if (Array.isArray(list)) {
-        setAvailableProviders(list);
+        nextProviders = list;
       } else if (config?.provider && typeof config.provider === "object") {
-        const fallback = Object.entries(config.provider as Record<string, any>).map(([id, cfg]) => ({
+        nextProviders = Object.entries(config.provider as Record<string, any>).map(([id, cfg]) => ({
           id,
           name: id,
           ...(cfg || {}),
         }));
-        setAvailableProviders(fallback);
+      }
+
+      if (llmProvidersStorageKey) {
+        try {
+          const raw = localStorage.getItem(llmProvidersStorageKey);
+          const parsed = raw ? (JSON.parse(raw) as any) : null;
+          const custom = Array.isArray(parsed?.providers) ? parsed.providers : [];
+          const customProviders = custom
+            .map((p: any) => ({
+              id: typeof p?.id === "string" ? String(p.id) : "",
+              name: typeof p?.name === "string" ? String(p.name) : "",
+              base_url: typeof p?.base_url === "string" ? String(p.base_url) : "",
+              api_key: typeof p?.api_key === "string" ? String(p.api_key) : "",
+              description: typeof p?.description === "string" ? String(p.description) : "",
+              models: p?.models && typeof p.models === "object" ? p.models : {},
+            }))
+            .filter((p: any) => p.id && p.name);
+
+          if (customProviders.length > 0) {
+            const merged = new Map<string, any>();
+            for (const p of nextProviders) {
+              if (p?.id) merged.set(String(p.id), p);
+            }
+            for (const p of customProviders) {
+              merged.set(String(p.id), p);
+            }
+            nextProviders = Array.from(merged.values());
+          }
+        } catch {}
+      }
+
+      if (nextProviders.length > 0) {
+        setAvailableProviders(nextProviders);
       }
     } catch {
       return;
     }
-  }, [opencodeClient, projectId, userId, workspaceDirectory]);
+  }, [llmProvidersStorageKey, opencodeClient, projectId, userId, workspaceDirectory]);
 
   useEffect(() => {
     if (!configProviderID || !configModelID) return;
