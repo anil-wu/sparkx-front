@@ -1,12 +1,11 @@
 "use client";
 
 import React from "react";
-import { Bot, Copy, History, Minimize2, PlusCircle, Settings, Share2 } from "lucide-react";
+import { Bot, Copy, History, Minimize2, PlusCircle, Share2 } from "lucide-react";
 
 export function ChatHeader({
   title,
   isOnline,
-  onOpenSettings,
   onNewChat,
   onOpenHistory,
   onOpenAgents,
@@ -15,7 +14,6 @@ export function ChatHeader({
 }: {
   title: string;
   isOnline: boolean | null;
-  onOpenSettings: () => void;
   onNewChat: () => void;
   onOpenHistory: () => void;
   onOpenAgents: () => void;
@@ -39,9 +37,6 @@ export function ChatHeader({
         )}
       </div>
       <div className="flex items-center gap-3 text-gray-600">
-        <button onClick={onOpenSettings} className="hover:text-gray-900 transition-colors" title={t("chat.settings")}>
-          <Settings size={18} />
-        </button>
         <button onClick={onNewChat} className="hover:text-gray-900 transition-colors" title={t("chat.new_chat")}>
           <PlusCircle size={18} />
         </button>

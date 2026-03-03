@@ -1,32 +1,30 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowUp, AtSign, Box, Check, Paperclip, Plane, Wrench } from "lucide-react";
 
 export function ChatComposer({
   inputValue,
   onChange,
   onSend,
-  onOpenModel,
-  modelLabel,
   isLoading,
   placeholder,
   availableProviders,
   onModelSelect,
   onOpenDropdown,
+  modelLabel,
   agentMode,
   onAgentModeChange,
 }: {
   inputValue: string;
   onChange: (value: string) => void;
   onSend: () => void;
-  onOpenModel: () => void;
-  modelLabel?: string;
   isLoading: boolean;
   placeholder: string;
   availableProviders?: any[];
   onModelSelect?: (provider: string, modelId: string) => void;
   onOpenDropdown?: () => void;
+  modelLabel?: string;
   agentMode?: "plan" | "build";
   onAgentModeChange?: (mode: "plan" | "build") => void;
 }) {
@@ -44,17 +42,13 @@ export function ChatComposer({
   }, []);
 
   const handleModelSelect = (provider: string, modelId: string) => {
-    if (onModelSelect) {
-      onModelSelect(provider, modelId);
-    }
+    onModelSelect?.(provider, modelId);
     setShowModelDropdown(false);
   };
 
-  const currentModel = modelLabel || "选择模型";
-
   const handleDropdownClick = () => {
-    if (!showModelDropdown && onOpenDropdown) {
-      onOpenDropdown();
+    if (!showModelDropdown) {
+      onOpenDropdown?.();
     }
     setShowModelDropdown(!showModelDropdown);
   };
@@ -125,17 +119,18 @@ export function ChatComposer({
                         <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-600 border-b border-gray-100">
                           {provider.name || provider.id}
                         </div>
-                        {provider.models && Object.keys(provider.models).map(modelId => (
-                          <button
-                            key={modelId}
-                            onClick={() => handleModelSelect(provider.id, modelId)}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center justify-between"
-                            type="button"
-                          >
-                            <span>{modelId}</span>
-                            {modelLabel === `${provider.id}/${modelId}` && <Check size={14} className="text-blue-500" />}
-                          </button>
-                        ))}
+                        {provider.models &&
+                          Object.keys(provider.models).map(modelId => (
+                            <button
+                              key={modelId}
+                              onClick={() => handleModelSelect(provider.id, modelId)}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center justify-between"
+                              type="button"
+                            >
+                              <span>{modelId}</span>
+                              {modelLabel === `${provider.id}/${modelId}` && <Check size={14} className="text-blue-500" />}
+                            </button>
+                          ))}
                       </div>
                     ))}
                   </div>

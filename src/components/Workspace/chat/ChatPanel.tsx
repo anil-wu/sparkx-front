@@ -9,7 +9,6 @@ import { ChatComposer } from "./ChatComposer";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessageList } from "./ChatMessageList";
 import { HistoryModal } from "./HistoryModal";
-import { SettingsModal } from "./SettingsModal";
 import { TodoPanel } from "./TodoPanel";
 import type { ChatPanelProps } from "./types";
 import { useOpencodeChat } from "./useOpencodeChat";
@@ -17,7 +16,6 @@ import { useOpencodeChat } from "./useOpencodeChat";
 export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId, userToken }: ChatPanelProps) {
   const { locale, t } = useI18n();
 
-  const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
   const [isTodoExpanded, setIsTodoExpanded] = useState(false);
@@ -53,10 +51,6 @@ export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId,
       <ChatHeader
         title={t("workspace.title")}
         isOnline={chat.isOnline}
-        onOpenSettings={() => {
-          setShowSettings(true);
-          void chat.fetchConfig();
-        }}
         onNewChat={chat.handleNewChat}
         onOpenHistory={() => {
           setShowHistory(true);
@@ -87,16 +81,10 @@ export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId,
         inputValue={inputValue}
         onChange={setInputValue}
         onSend={handleSend}
-        onOpenModel={() => {
-          setShowSettings(true);
-          void chat.fetchConfig();
-        }}
-        modelLabel={`${chat.provider}/${chat.modelId}`}
         isLoading={chat.isLoading}
         placeholder={t("chat.input_placeholder")}
         availableProviders={chat.availableProviders}
-        agentMode={chat.agentMode}
-        onAgentModeChange={mode => chat.setAgentMode(mode)}
+        modelLabel={`${chat.provider}/${chat.modelId}`}
         onOpenDropdown={() => {
           if (chat.availableProviders.length === 0) {
             void chat.fetchConfig();
@@ -107,27 +95,9 @@ export default function ChatPanel({ isCollapsed, togglePanel, projectId, userId,
           chat.setModelId(modelId);
           void chat.handleSaveSettings(provider, modelId);
         }}
+        agentMode={chat.agentMode}
+        onAgentModeChange={mode => chat.setAgentMode(mode)}
       />
-
-      {showSettings && (
-        <SettingsModal
-          provider={chat.provider}
-          setProvider={chat.setProvider}
-          modelId={chat.modelId}
-          setModelId={chat.setModelId}
-          apiKey={chat.apiKey}
-          setApiKey={chat.setApiKey}
-          availableProviders={chat.availableProviders}
-          isSaving={chat.isSavingSettings}
-          feedback={chat.settingsFeedback}
-          onSave={async () => {
-            const ok = await chat.handleSaveSettings(chat.provider, chat.modelId);
-            if (ok) setTimeout(() => setShowSettings(false), 1500);
-          }}
-          onClose={() => setShowSettings(false)}
-          t={t}
-        />
-      )}
 
       {showHistory && (
         <HistoryModal
