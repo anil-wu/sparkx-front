@@ -21,7 +21,7 @@ export function useWorkspaceFiles({ projectId, userId, userToken }: Params) {
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const workspaceMgrBaseUrl = "http://localhost:7070";
+  const workspaceMgrBaseUrl = process.env.NEXT_PUBLIC_OPENCODE_WORKSPACE_MGR_BASE_URL || "http://localhost:7070";
   const workspaceRoot = "game";
 
   const canLoadWorkspace = Boolean(projectId && userId);

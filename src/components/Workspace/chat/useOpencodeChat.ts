@@ -28,6 +28,7 @@ export function useOpencodeChat({
 }) {
   const [workspaceDirectory, setWorkspaceDirectory] = useState<string | undefined>(undefined);
   const workspaceDirectoryKeyRef = useRef<string | null>(null);
+  const workspaceMgrBaseUrl = process.env.NEXT_PUBLIC_OPENCODE_WORKSPACE_MGR_BASE_URL || "http://localhost:7070";
 
   const userKey = userId ? String(userId) : "anon";
   const sessionProjectIndexStorageKey = useMemo(() => `sparkplay:chat:sessionProjectIndex:${userKey}`, [userKey]);
@@ -139,7 +140,7 @@ export function useOpencodeChat({
 
     void (async () => {
       try {
-        const response = await fetch("http://localhost:7070/api/projects/create", {
+        const response = await fetch(`${workspaceMgrBaseUrl}/api/projects/create`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ userId: String(userId), projectId, token: userToken || "" }),
@@ -155,7 +156,7 @@ export function useOpencodeChat({
         setError(t("chat.error_workspace_create_failed"));
       }
     })();
-  }, [projectId, t, userId, userToken]);
+  }, [projectId, t, userId, userToken, workspaceMgrBaseUrl]);
 
   const opencodeClient = useMemo(() => createOpencodeClientForDirectory(workspaceDirectory), [workspaceDirectory]);
 
