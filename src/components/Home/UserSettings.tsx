@@ -28,90 +28,53 @@ import type { SparkxSession } from "@/lib/sparkx-session";
 
 type ModelType = "llm" | "vlm" | "embedding";
 
-type ProviderModelConfig = {
-  model_type?: ModelType;
-  max_input_tokens?: number;
-  max_output_tokens?: number;
-  support_stream?: boolean;
-  support_json?: boolean;
-  price_input_per_1k?: number;
-  price_output_per_1k?: number;
-};
-
-type ProviderConfig = {
-  id: string;
+type LlmProvider = {
+  id: number;
   name: string;
-  base_url?: string;
-  api_key?: string;
-  description?: string;
-  models?: Record<string, ProviderModelConfig>;
+  baseUrl: string;
+  hasApiKey: boolean;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
-type StoredConfig = {
-  version: 1;
-  providers: ProviderConfig[];
-};
-
-const STORAGE_KEY_PREFIX = "sparkplay:llm:providers:v1";
-
-const sanitizeProviderId = (raw: string) =>
-  raw
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-const readStoredConfig = (storageKey: string): StoredConfig => {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return { version: 1, providers: [] };
-    const parsed = JSON.parse(raw) as unknown;
-    const providers = Array.isArray((parsed as any)?.providers)
-      ? ((parsed as any).providers as unknown[])
-          .map((p) => ({
-            id: typeof (p as any)?.id === "string" ? String((p as any).id) : "",
-            name: typeof (p as any)?.name === "string" ? String((p as any).name) : "",
-            base_url: typeof (p as any)?.base_url === "string" ? String((p as any).base_url) : "",
-            api_key: typeof (p as any)?.api_key === "string" ? String((p as any).api_key) : "",
-            description: typeof (p as any)?.description === "string" ? String((p as any).description) : "",
-            models: (p as any)?.models && typeof (p as any).models === "object" ? (p as any).models : {},
-          }))
-          .filter((p) => p.id && p.name)
-      : [];
-    return { version: 1, providers };
-  } catch {
-    return { version: 1, providers: [] };
-  }
-};
-
-const writeStoredConfig = (storageKey: string, config: StoredConfig) => {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(config));
-  } catch {}
+type LlmModel = {
+  id: number;
+  providerId: number;
+  modelName: string;
+  modelType: ModelType;
+  maxInputTokens: number;
+  maxOutputTokens: number;
+  supportStream: boolean;
+  supportJson: boolean;
+  priceInputPer1k: number;
+  priceOutputPer1k: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function UserSettings({ session }: { session: SparkxSession }) {
   const { t } = useI18n();
-  const storageKey = useMemo(() => `${STORAGE_KEY_PREFIX}:${session.userId}`, [session.userId]);
 
-  const [providers, setProviders] = useState<ProviderConfig[]>([]);
+  const [providers, setProviders] = useState<LlmProvider[]>([]);
+  const [models, setModels] = useState<LlmModel[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
 
   const [providerDialogOpen, setProviderDialogOpen] = useState(false);
-  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [editingProviderId, setEditingProviderId] = useState<number | null>(null);
   const [providerForm, setProviderForm] = useState<{
-    id: string;
     name: string;
     base_url: string;
     api_key: string;
+    clear_api_key: boolean;
     description: string;
-  }>({ id: "", name: "", base_url: "", api_key: "", description: "" });
+  }>({ name: "", base_url: "", api_key: "", clear_api_key: false, description: "" });
 
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
-  const [editingModelId, setEditingModelId] = useState<string | null>(null);
+  const [editingModelId, setEditingModelId] = useState<number | null>(null);
   const [modelForm, setModelForm] = useState<{
     provider_id: string;
-    model_id: string;
+    model_name: string;
     model_type: ModelType;
     max_input_tokens: string;
     max_output_tokens: string;
@@ -121,7 +84,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
     price_output_per_1k: string;
   }>({
     provider_id: "",
-    model_id: "",
+    model_name: "",
     model_type: "llm",
     max_input_tokens: "",
     max_output_tokens: "",
@@ -131,104 +94,175 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
     price_output_per_1k: "",
   });
 
-  useEffect(() => {
-    const stored = readStoredConfig(storageKey);
-    setProviders(stored.providers);
-    setSelectedProviderId((prev) => {
-      if (prev && stored.providers.some((p) => p.id === prev)) return prev;
-      return stored.providers[0]?.id ?? "";
-    });
-  }, [storageKey]);
-
-  useEffect(() => {
-    writeStoredConfig(storageKey, { version: 1, providers });
-  }, [providers, storageKey]);
-
   const providersById = useMemo(() => {
-    const map = new Map<string, ProviderConfig>();
-    for (const p of providers) {
-      map.set(p.id, p);
-    }
+    const map = new Map<number, LlmProvider>();
+    for (const p of providers) map.set(p.id, p);
     return map;
   }, [providers]);
 
-  const selectedProvider = selectedProviderId ? providersById.get(selectedProviderId) : undefined;
+  const selectedProvider = useMemo(() => {
+    const id = Number(selectedProviderId);
+    if (!Number.isFinite(id) || id <= 0) return undefined;
+    return providersById.get(id);
+  }, [providersById, selectedProviderId]);
+
+  const editingProvider = useMemo(() => {
+    if (!editingProviderId) return undefined;
+    return providersById.get(editingProviderId);
+  }, [editingProviderId, providersById]);
+
   const selectedModels = useMemo(() => {
-    if (!selectedProvider?.models) return [];
-    return Object.entries(selectedProvider.models)
-      .map(([modelId, cfg]) => ({
-        id: modelId,
-        cfg: cfg || {},
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id));
-  }, [selectedProvider?.models]);
+    const id = Number(selectedProviderId);
+    if (!Number.isFinite(id) || id <= 0) return [];
+    return models
+      .filter((m) => m.providerId === id)
+      .sort((a, b) => a.modelName.localeCompare(b.modelName));
+  }, [models, selectedProviderId]);
+
+  const loadProviders = async () => {
+    const response = await fetch("/api/llm/providers?page=1&pageSize=200", {
+      method: "GET",
+      cache: "no-store",
+    });
+    const payload = (await response.json()) as any;
+    if (!response.ok) {
+      throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to load providers");
+    }
+    const list = Array.isArray(payload?.list) ? (payload.list as LlmProvider[]) : [];
+    setProviders(list);
+    setSelectedProviderId((prev) => {
+      if (prev && list.some((p) => String(p.id) === prev)) return prev;
+      return list[0]?.id ? String(list[0].id) : "";
+    });
+  };
+
+  const loadModels = async (providerId: string) => {
+    const normalized = Number(providerId);
+    if (!Number.isFinite(normalized) || normalized <= 0) {
+      setModels([]);
+      return;
+    }
+
+    const response = await fetch(`/api/llm/models?providerId=${encodeURIComponent(String(normalized))}&page=1&pageSize=500`, {
+      method: "GET",
+      cache: "no-store",
+    });
+    const payload = (await response.json()) as any;
+    if (!response.ok) {
+      throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to load models");
+    }
+    const list = Array.isArray(payload?.list) ? (payload.list as LlmModel[]) : [];
+    setModels(list);
+  };
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await loadProviders();
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "加载提供商失败");
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProviderId) {
+      setModels([]);
+      return;
+    }
+    void (async () => {
+      try {
+        await loadModels(selectedProviderId);
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "加载模型失败");
+      }
+    })();
+  }, [selectedProviderId]);
 
   const openCreateProvider = () => {
     setEditingProviderId(null);
-    setProviderForm({ id: "", name: "", base_url: "", api_key: "", description: "" });
+    setProviderForm({ name: "", base_url: "", api_key: "", clear_api_key: false, description: "" });
     setProviderDialogOpen(true);
   };
 
-  const openEditProvider = (providerId: string) => {
+  const openEditProvider = (providerId: number) => {
     const p = providersById.get(providerId);
     if (!p) return;
     setEditingProviderId(providerId);
     setProviderForm({
-      id: p.id,
       name: p.name,
-      base_url: p.base_url ?? "",
-      api_key: p.api_key ?? "",
+      base_url: p.baseUrl ?? "",
+      api_key: "",
+      clear_api_key: false,
       description: p.description ?? "",
     });
     setProviderDialogOpen(true);
   };
 
-  const saveProvider = () => {
+  const saveProvider = async () => {
+    if (!session.isSuper) return;
+
     const trimmedName = providerForm.name.trim();
-    const rawId = providerForm.id.trim() ? providerForm.id.trim() : sanitizeProviderId(trimmedName);
-    const nextId = sanitizeProviderId(rawId);
-    if (!trimmedName || !nextId) return;
+    if (!trimmedName) return;
 
-    setProviders((prev) => {
-      const nextModels =
-        editingProviderId && prev.find((p) => p.id === editingProviderId)?.models
-          ? (prev.find((p) => p.id === editingProviderId)?.models ?? {})
-          : {};
-      const nextProvider: ProviderConfig = {
-        id: nextId,
-        name: trimmedName,
-        base_url: providerForm.base_url.trim(),
-        api_key: providerForm.api_key,
-        description: providerForm.description.trim(),
-        models: nextModels,
-      };
+    const payload = {
+      name: trimmedName,
+      baseUrl: providerForm.base_url.trim(),
+      apiKey: providerForm.api_key.trim(),
+      clearApiKey: providerForm.clear_api_key === true,
+      description: providerForm.description.trim(),
+    };
 
-      const filtered = editingProviderId
-        ? prev.filter((p) => p.id !== editingProviderId && p.id !== nextId)
-        : prev.filter((p) => p.id !== nextId);
+    try {
+      if (editingProviderId) {
+        const response = await fetch(`/api/llm/providers/${editingProviderId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = (await response.json()) as any;
+        if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "保存失败");
+      } else {
+        const response = await fetch(`/api/llm/providers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = (await response.json()) as any;
+        if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "保存失败");
+      }
 
-      return [nextProvider, ...filtered].sort((a, b) => a.name.localeCompare(b.name));
-    });
-    setSelectedProviderId(nextId);
-    setProviderDialogOpen(false);
+      await loadProviders();
+      setProviderDialogOpen(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "保存失败");
+    }
   };
 
-  const deleteProvider = (providerId: string) => {
+  const deleteProvider = async (providerId: number) => {
+    if (!session.isSuper) return;
     const p = providersById.get(providerId);
     const name = p?.name ? `「${p.name}」` : "";
     const ok = confirm(`确认删除模型提供商${name}吗？将同时删除该提供商下的所有模型。`);
     if (!ok) return;
-    setProviders((prev) => prev.filter((it) => it.id !== providerId));
-    setSelectedProviderId((prev) => (prev === providerId ? "" : prev));
+
+    try {
+      const response = await fetch(`/api/llm/providers/${providerId}`, { method: "DELETE" });
+      const result = (await response.json()) as any;
+      if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "删除失败");
+      await loadProviders();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "删除失败");
+    }
   };
 
   const openCreateModel = () => {
-    const defaultProvider = selectedProviderId || providers[0]?.id || "";
+    const defaultProvider = selectedProviderId || (providers[0]?.id ? String(providers[0].id) : "");
     if (!defaultProvider) return;
     setEditingModelId(null);
     setModelForm({
       provider_id: defaultProvider,
-      model_id: "",
+      model_name: "",
       model_type: "llm",
       max_input_tokens: "",
       max_output_tokens: "",
@@ -240,30 +274,30 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
     setModelDialogOpen(true);
   };
 
-  const openEditModel = (providerId: string, modelId: string) => {
-    const p = providersById.get(providerId);
-    const cfg = p?.models?.[modelId];
-    if (!p || !cfg) return;
-
+  const openEditModel = (modelId: number) => {
+    const m = selectedModels.find((it) => it.id === modelId);
+    if (!m) return;
     setEditingModelId(modelId);
     setModelForm({
-      provider_id: providerId,
-      model_id: modelId,
-      model_type: cfg.model_type ?? "llm",
-      max_input_tokens: Number.isFinite(cfg.max_input_tokens) ? String(cfg.max_input_tokens) : "",
-      max_output_tokens: Number.isFinite(cfg.max_output_tokens) ? String(cfg.max_output_tokens) : "",
-      support_stream: cfg.support_stream ?? false,
-      support_json: cfg.support_json ?? false,
-      price_input_per_1k: Number.isFinite(cfg.price_input_per_1k) ? String(cfg.price_input_per_1k) : "",
-      price_output_per_1k: Number.isFinite(cfg.price_output_per_1k) ? String(cfg.price_output_per_1k) : "",
+      provider_id: String(m.providerId),
+      model_name: m.modelName,
+      model_type: m.modelType,
+      max_input_tokens: String(m.maxInputTokens ?? 0),
+      max_output_tokens: String(m.maxOutputTokens ?? 0),
+      support_stream: m.supportStream ?? false,
+      support_json: m.supportJson ?? false,
+      price_input_per_1k: String(m.priceInputPer1k ?? 0),
+      price_output_per_1k: String(m.priceOutputPer1k ?? 0),
     });
     setModelDialogOpen(true);
   };
 
-  const saveModel = () => {
-    const providerId = modelForm.provider_id;
-    const modelId = modelForm.model_id.trim();
-    if (!providerId || !modelId) return;
+  const saveModel = async () => {
+    if (!session.isSuper) return;
+
+    const providerId = Number(modelForm.provider_id);
+    const modelName = modelForm.model_name.trim();
+    if (!Number.isFinite(providerId) || providerId <= 0 || !modelName) return;
 
     const parseNum = (value: string): number | undefined => {
       const trimmed = value.trim();
@@ -273,42 +307,77 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
       return n;
     };
 
-    const cfg: ProviderModelConfig = {
-      model_type: modelForm.model_type,
-      max_input_tokens: parseNum(modelForm.max_input_tokens),
-      max_output_tokens: parseNum(modelForm.max_output_tokens),
-      support_stream: modelForm.support_stream,
-      support_json: modelForm.support_json,
-      price_input_per_1k: parseNum(modelForm.price_input_per_1k),
-      price_output_per_1k: parseNum(modelForm.price_output_per_1k),
+    const createPayload = {
+      providerId,
+      modelName,
+      modelType: modelForm.model_type,
+      maxInputTokens: parseNum(modelForm.max_input_tokens) ?? 0,
+      maxOutputTokens: parseNum(modelForm.max_output_tokens) ?? 0,
+      supportStream: modelForm.support_stream,
+      supportJson: modelForm.support_json,
+      priceInputPer1k: parseNum(modelForm.price_input_per_1k) ?? 0,
+      priceOutputPer1k: parseNum(modelForm.price_output_per_1k) ?? 0,
     };
 
-    setProviders((prev) =>
-      prev.map((p) => {
-        if (p.id !== providerId) return p;
-        const models = { ...(p.models ?? {}) };
-        if (editingModelId && editingModelId !== modelId) {
-          delete models[editingModelId];
-        }
-        models[modelId] = cfg;
-        return { ...p, models };
-      }),
-    );
-    setSelectedProviderId(providerId);
-    setModelDialogOpen(false);
+    const updatePayload: Record<string, unknown> = {
+      providerId,
+      modelName,
+      modelType: modelForm.model_type,
+      supportStream: modelForm.support_stream,
+      supportJson: modelForm.support_json,
+    };
+    const maxInputTokens = parseNum(modelForm.max_input_tokens);
+    const maxOutputTokens = parseNum(modelForm.max_output_tokens);
+    const priceInputPer1k = parseNum(modelForm.price_input_per_1k);
+    const priceOutputPer1k = parseNum(modelForm.price_output_per_1k);
+    if (typeof maxInputTokens === "number") updatePayload.maxInputTokens = maxInputTokens;
+    if (typeof maxOutputTokens === "number") updatePayload.maxOutputTokens = maxOutputTokens;
+    if (typeof priceInputPer1k === "number") updatePayload.priceInputPer1k = priceInputPer1k;
+    if (typeof priceOutputPer1k === "number") updatePayload.priceOutputPer1k = priceOutputPer1k;
+
+    try {
+      if (editingModelId) {
+        const response = await fetch(`/api/llm/models/${editingModelId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+        const result = (await response.json()) as any;
+        if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "保存失败");
+      } else {
+        const response = await fetch(`/api/llm/models`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(createPayload),
+        });
+        const result = (await response.json()) as any;
+        if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "保存失败");
+      }
+
+      await loadModels(String(providerId));
+      setSelectedProviderId(String(providerId));
+      setModelDialogOpen(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "保存失败");
+    }
   };
 
-  const deleteModel = (providerId: string, modelId: string) => {
-    const ok = confirm(`确认删除模型「${modelId}」吗？`);
+  const deleteModel = async (modelId: number) => {
+    if (!session.isSuper) return;
+    const target = selectedModels.find((it) => it.id === modelId);
+    const ok = confirm(`确认删除模型「${target?.modelName ?? modelId}」吗？`);
     if (!ok) return;
-    setProviders((prev) =>
-      prev.map((p) => {
-        if (p.id !== providerId) return p;
-        const models = { ...(p.models ?? {}) };
-        delete models[modelId];
-        return { ...p, models };
-      }),
-    );
+
+    try {
+      const response = await fetch(`/api/llm/models/${modelId}`, { method: "DELETE" });
+      const result = (await response.json()) as any;
+      if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "删除失败");
+      if (selectedProviderId) {
+        await loadModels(selectedProviderId);
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "删除失败");
+    }
   };
 
   return (
@@ -318,7 +387,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
           <CardTitle className="text-xl">
             {session.isSuper ? t("user_home.settings_admin_title") : t("user_home.settings_title")}
           </CardTitle>
-          <CardDescription>管理模型提供商与模型信息（仅保存在当前浏览器）。</CardDescription>
+          <CardDescription>管理模型提供商与模型信息（数据来自 api-service）。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between gap-3">
@@ -326,10 +395,12 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
               <div className="text-sm font-semibold text-slate-900">模型提供商</div>
               <div className="text-xs text-slate-500">配置名称、Base URL 与 API Key</div>
             </div>
-            <Button onClick={openCreateProvider} size="sm" type="button">
-              <Plus />
-              新增提供商
-            </Button>
+            {session.isSuper ? (
+              <Button onClick={openCreateProvider} size="sm" type="button">
+                <Plus />
+                新增提供商
+              </Button>
+            ) : null}
           </div>
 
           {providers.length === 0 ? (
@@ -339,7 +410,6 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
           ) : (
             <div className="grid gap-3">
               {providers.map((p) => {
-                const modelCount = p.models ? Object.keys(p.models).length : 0;
                 return (
                   <div key={p.id} className="rounded-xl border bg-white p-4">
                     <div className="flex items-start justify-between gap-4">
@@ -349,18 +419,32 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
                           <div className="text-xs text-slate-500">({p.id})</div>
                         </div>
                         <div className="mt-1 text-xs text-slate-600 truncate">
-                          {p.base_url ? `Base URL: ${p.base_url}` : "Base URL: 未设置"}
+                          {p.baseUrl ? `Base URL: ${p.baseUrl}` : "Base URL: 未设置"}
                         </div>
-                        <div className="mt-1 text-xs text-slate-600">模型数量: {modelCount}</div>
+                        <div className="mt-1 text-xs text-slate-600">API Key: {p.hasApiKey ? "已设置" : "未设置"}</div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button variant="outline" size="icon" type="button" onClick={() => openEditProvider(p.id)} aria-label="编辑提供商">
-                          <Edit3 />
-                        </Button>
-                        <Button variant="destructive" size="icon" type="button" onClick={() => deleteProvider(p.id)} aria-label="删除提供商">
-                          <Trash2 />
-                        </Button>
-                      </div>
+                      {session.isSuper ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            type="button"
+                            onClick={() => openEditProvider(p.id)}
+                            aria-label="编辑提供商"
+                          >
+                            <Edit3 />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            type="button"
+                            onClick={() => deleteProvider(p.id)}
+                            aria-label="删除提供商"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -383,17 +467,19 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
                   </SelectTrigger>
                   <SelectContent>
                     {providers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
+                      <SelectItem key={p.id} value={String(p.id)}>
                         {p.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={openCreateModel} size="sm" type="button" disabled={!selectedProviderId}>
-                <Plus />
-                新增模型
-              </Button>
+              {session.isSuper ? (
+                <Button onClick={openCreateModel} size="sm" type="button" disabled={!selectedProviderId}>
+                  <Plus />
+                  新增模型
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -407,39 +493,41 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
             </div>
           ) : (
             <div className="grid gap-3">
-              {selectedModels.map(({ id, cfg }) => (
-                <div key={id} className="rounded-xl border bg-white p-4">
+              {selectedModels.map((m) => (
+                <div key={m.id} className="rounded-xl border bg-white p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="font-semibold text-slate-900 truncate">{id}</div>
+                      <div className="font-semibold text-slate-900 truncate">{m.modelName}</div>
                       <div className="mt-1 text-xs text-slate-600">
-                        类型: {cfg.model_type ?? "llm"}，输入: {cfg.max_input_tokens ?? 0}，输出: {cfg.max_output_tokens ?? 0}
+                        类型: {m.modelType ?? "llm"}，输入: {m.maxInputTokens ?? 0}，输出: {m.maxOutputTokens ?? 0}
                       </div>
                       <div className="mt-1 text-xs text-slate-600 flex items-center gap-3">
-                        <span>流式: {cfg.support_stream ? "支持" : "不支持"}</span>
-                        <span>JSON: {cfg.support_json ? "支持" : "不支持"}</span>
+                        <span>流式: {m.supportStream ? "支持" : "不支持"}</span>
+                        <span>JSON: {m.supportJson ? "支持" : "不支持"}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        type="button"
-                        onClick={() => openEditModel(selectedProviderId, id)}
-                        aria-label="编辑模型"
-                      >
-                        <Edit3 />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        type="button"
-                        onClick={() => deleteModel(selectedProviderId, id)}
-                        aria-label="删除模型"
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
+                    {session.isSuper ? (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          type="button"
+                          onClick={() => openEditModel(m.id)}
+                          aria-label="编辑模型"
+                        >
+                          <Edit3 />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          type="button"
+                          onClick={() => deleteModel(m.id)}
+                          aria-label="删除模型"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -452,7 +540,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>{editingProviderId ? "编辑提供商" : "新增提供商"}</DialogTitle>
-            <DialogDescription>提供商信息将保存在当前浏览器的 localStorage。</DialogDescription>
+            <DialogDescription>提供商信息将写入 api-service（仅超级账号可写）。</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2">
@@ -462,15 +550,6 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
                 value={providerForm.name}
                 onChange={(e) => setProviderForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="例如：OpenRouter"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="provider-id">ID</Label>
-              <Input
-                id="provider-id"
-                value={providerForm.id}
-                onChange={(e) => setProviderForm((prev) => ({ ...prev, id: e.target.value }))}
-                placeholder="例如：openrouter（留空则自动生成）"
               />
             </div>
             <div className="grid gap-2">
@@ -489,9 +568,19 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
                 type="password"
                 value={providerForm.api_key}
                 onChange={(e) => setProviderForm((prev) => ({ ...prev, api_key: e.target.value }))}
-                placeholder="可选"
+                placeholder={editingProviderId && editingProvider?.hasApiKey ? "已设置（留空不修改）" : "可选"}
+                disabled={providerForm.clear_api_key === true}
               />
             </div>
+            {editingProviderId && editingProvider?.hasApiKey ? (
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <Checkbox
+                  checked={providerForm.clear_api_key}
+                  onCheckedChange={(v) => setProviderForm((prev) => ({ ...prev, clear_api_key: v === true }))}
+                />
+                清空 API Key
+              </label>
+            ) : null}
             <div className="grid gap-2">
               <Label htmlFor="provider-desc">描述</Label>
               <textarea
@@ -507,7 +596,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
             <Button variant="outline" type="button" onClick={() => setProviderDialogOpen(false)}>
               取消
             </Button>
-            <Button type="button" onClick={saveProvider}>
+            <Button type="button" onClick={saveProvider} disabled={!session.isSuper}>
               保存
             </Button>
           </DialogFooter>
@@ -518,7 +607,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle>{editingModelId ? "编辑模型" : "新增模型"}</DialogTitle>
-            <DialogDescription>模型信息将保存在当前浏览器的 localStorage。</DialogDescription>
+            <DialogDescription>模型信息将写入 api-service（仅超级账号可写）。</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2">
@@ -529,7 +618,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
                 </SelectTrigger>
                 <SelectContent>
                   {providers.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
+                    <SelectItem key={p.id} value={String(p.id)}>
                       {p.name}
                     </SelectItem>
                   ))}
@@ -540,8 +629,8 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
               <Label htmlFor="model-id">模型 ID</Label>
               <Input
                 id="model-id"
-                value={modelForm.model_id}
-                onChange={(e) => setModelForm((prev) => ({ ...prev, model_id: e.target.value }))}
+                value={modelForm.model_name}
+                onChange={(e) => setModelForm((prev) => ({ ...prev, model_name: e.target.value }))}
                 placeholder="例如：qwen/qwen-max"
               />
             </div>
@@ -619,7 +708,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
             <Button variant="outline" type="button" onClick={() => setModelDialogOpen(false)}>
               取消
             </Button>
-            <Button type="button" onClick={saveModel} disabled={!modelForm.provider_id || !modelForm.model_id.trim()}>
+            <Button type="button" onClick={saveModel} disabled={!session.isSuper || !modelForm.provider_id || !modelForm.model_name.trim()}>
               保存
             </Button>
           </DialogFooter>
