@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, Trash2 } from "lucide-react";
+import { Download, Edit3, Plus, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/i18n/client";
+import { fileAPI } from "@/lib/file-api";
 import type { SparkxSession } from "@/lib/sparkx-session";
 
 type ModelType = "llm" | "vlm" | "embedding";
@@ -51,6 +53,21 @@ type LlmModel = {
   priceOutputPer1k: number;
   createdAt: string;
   updatedAt: string;
+};
+
+type SoftwareTemplate = {
+  id: number;
+  name: string;
+  description: string;
+  archiveFileId: number;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type PagedResponse<T> = {
+  list: T[];
+  page: { page: number; pageSize: number; total: number };
 };
 
 export default function UserSettings({ session }: { session: SparkxSession }) {
@@ -93,6 +110,15 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
     price_input_per_1k: "",
     price_output_per_1k: "",
   });
+
+  const [templates, setTemplates] = useState<SoftwareTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
+  const [templateForm, setTemplateForm] = useState<{ name: string; description: string }>({ name: "", description: "" });
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
+  const [templateUploading, setTemplateUploading] = useState(false);
+  const [templateUploadProgress, setTemplateUploadProgress] = useState(0);
 
   const providersById = useMemo(() => {
     const map = new Map<number, LlmProvider>();
@@ -380,8 +406,154 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
     }
   };
 
+  const loadTemplates = async () => {
+    setTemplatesLoading(true);
+    try {
+      const response = await fetch("/api/software-templates?page=1&pageSize=200", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as any;
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to load templates");
+      }
+      const list = Array.isArray(payload?.list) ? (payload.list as SoftwareTemplate[]) : [];
+      setTemplates(list);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await loadTemplates();
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "加载模版失败");
+      }
+    })();
+  }, []);
+
+  const openCreateTemplate = () => {
+    setEditingTemplateId(null);
+    setTemplateForm({ name: "", description: "" });
+    setTemplateFile(null);
+    setTemplateUploadProgress(0);
+    setTemplateDialogOpen(true);
+  };
+
+  const openEditTemplate = (templateId: number) => {
+    const target = templates.find((it) => it.id === templateId);
+    if (!target) return;
+    setEditingTemplateId(templateId);
+    setTemplateForm({ name: target.name ?? "", description: target.description ?? "" });
+    setTemplateFile(null);
+    setTemplateUploadProgress(0);
+    setTemplateDialogOpen(true);
+  };
+
+  const deleteTemplate = async (templateId: number) => {
+    if (!session.isSuper) return;
+    const target = templates.find((it) => it.id === templateId);
+    const name = target?.name ? `「${target.name}」` : "";
+    const ok = confirm(`确认删除游戏模版${name}吗？`);
+    if (!ok) return;
+
+    try {
+      const response = await fetch(`/api/software-templates/${templateId}`, { method: "DELETE" });
+      const result = (await response.json()) as any;
+      if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "删除失败");
+      await loadTemplates();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "删除失败");
+    }
+  };
+
+  const saveTemplate = async () => {
+    if (!session.isSuper) return;
+
+    const trimmedName = templateForm.name.trim();
+    if (!trimmedName) return;
+
+    const isCreate = !editingTemplateId;
+    if (isCreate && !templateFile) {
+      alert("请选择模版压缩包");
+      return;
+    }
+
+    const pickExt = (filename: string): string => {
+      const parts = filename.split(".");
+      if (parts.length <= 1) return "";
+      return parts[parts.length - 1]!.toLowerCase();
+    };
+
+    const payload: Record<string, unknown> = { name: trimmedName };
+    const trimmedDescription = templateForm.description.trim();
+    if (trimmedDescription) payload.description = trimmedDescription;
+
+    try {
+      setTemplateUploading(true);
+      setTemplateUploadProgress(10);
+
+      if (templateFile) {
+        const ext = pickExt(templateFile.name);
+        const hash = await fileAPI.calculateHash(templateFile);
+        setTemplateUploadProgress(30);
+
+        const preupload = await fileAPI.preUpload(
+          0,
+          templateFile.name,
+          "archive",
+          ext || "zip",
+          templateFile.size,
+          hash,
+        );
+        if (!preupload) {
+          throw new Error("预上传失败");
+        }
+
+        setTemplateUploadProgress(60);
+        const ok = await fileAPI.uploadToOSS(preupload.uploadUrl, templateFile, preupload.contentType);
+        if (!ok) {
+          throw new Error("上传到存储失败");
+        }
+
+        payload.archiveFileId = preupload.fileId;
+      }
+
+      setTemplateUploadProgress(85);
+      const response = await fetch(
+        editingTemplateId ? `/api/software-templates/${editingTemplateId}` : "/api/software-templates",
+        {
+          method: editingTemplateId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      const result = (await response.json()) as any;
+      if (!response.ok) {
+        throw new Error(typeof result?.error === "string" ? result.error : "保存失败");
+      }
+
+      setTemplateUploadProgress(100);
+      await loadTemplates();
+      setTemplateDialogOpen(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "保存失败");
+    } finally {
+      setTemplateUploading(false);
+      setTemplateUploadProgress(0);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="models" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="models">模型管理</TabsTrigger>
+        <TabsTrigger value="templates">游戏模版</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="models" className="space-y-6">
       <Card>
         <CardHeader className="space-y-1">
           <CardTitle className="text-xl">
@@ -535,6 +707,165 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
           )}
         </CardContent>
       </Card>
+      </TabsContent>
+
+      <TabsContent value="templates" className="space-y-6">
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-xl">游戏模版</CardTitle>
+          <CardDescription>管理游戏模版（用于创建软件工程的初始模板）。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">模版列表</div>
+              <div className="text-xs text-slate-500">支持 zip 等压缩包格式</div>
+            </div>
+            {session.isSuper ? (
+              <Button onClick={openCreateTemplate} size="sm" type="button">
+                <Upload />
+                上传模版
+              </Button>
+            ) : null}
+          </div>
+
+          {templatesLoading ? (
+            <div className="rounded-xl border bg-white p-6 text-sm text-slate-500">加载中...</div>
+          ) : templates.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-slate-500">
+              还没有配置任何模版
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {templates
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((tpl) => (
+                  <div key={tpl.id} className="rounded-xl border bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-slate-900 truncate">{tpl.name}</div>
+                          <div className="text-xs text-slate-500">({tpl.id})</div>
+                        </div>
+                        <div className="mt-1 text-xs text-slate-600">
+                          {tpl.description ? tpl.description : "暂无描述"}
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          {tpl.archiveFileId ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              onClick={() => window.open(`/api/files/${tpl.archiveFileId}/content`, "_blank")}
+                            >
+                              <Download />
+                              下载压缩包
+                            </Button>
+                          ) : (
+                            <div className="text-xs text-slate-500">未绑定压缩包</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {session.isSuper ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            type="button"
+                            onClick={() => openEditTemplate(tpl.id)}
+                            aria-label="编辑模版"
+                          >
+                            <Edit3 />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            type="button"
+                            onClick={() => deleteTemplate(tpl.id)}
+                            aria-label="删除模版"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      </TabsContent>
+
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>{editingTemplateId ? "编辑游戏模版" : "上传游戏模版"}</DialogTitle>
+            <DialogDescription>
+              {editingTemplateId ? "可更新名称/描述，或重新上传压缩包。" : "上传压缩包并创建模版记录。"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="template_name">模版名称</Label>
+              <Input
+                id="template_name"
+                value={templateForm.name}
+                onChange={(e) => setTemplateForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="例如 phaser-blank"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="template_description">描述</Label>
+              <Input
+                id="template_description"
+                value={templateForm.description}
+                onChange={(e) => setTemplateForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="可选"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="template_file">压缩包</Label>
+              <Input
+                id="template_file"
+                type="file"
+                accept=".zip,.tar,.gz,.tgz,.rar,.7z"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setTemplateFile(file);
+                  if (file && !templateForm.name.trim()) {
+                    const withoutExt = file.name.replace(/\.[^/.]+$/, "");
+                    setTemplateForm((prev) => ({ ...prev, name: withoutExt }));
+                  }
+                }}
+              />
+              {editingTemplateId ? (
+                <div className="text-xs text-slate-500">不选文件则仅更新名称/描述</div>
+              ) : (
+                <div className="text-xs text-slate-500">创建时必须选择文件</div>
+              )}
+            </div>
+
+            {templateUploading ? (
+              <div className="text-xs text-slate-600">上传中... {templateUploadProgress}%</div>
+            ) : null}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" type="button" onClick={() => setTemplateDialogOpen(false)} disabled={templateUploading}>
+              取消
+            </Button>
+            <Button type="button" onClick={saveTemplate} disabled={!session.isSuper || templateUploading || !templateForm.name.trim()}>
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={providerDialogOpen} onOpenChange={setProviderDialogOpen}>
         <DialogContent className="sm:max-w-[520px]">
@@ -714,7 +1045,7 @@ export default function UserSettings({ session }: { session: SparkxSession }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Tabs>
   );
 }
 

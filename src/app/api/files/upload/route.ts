@@ -38,7 +38,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Invalid request body" }, { status: 400 });
   }
 
-  const result = await fetchSparkxJson<UploadResp>("/api/v1/files/preupload", {
+  const useAdminPreupload = body.projectId === 0;
+  if (useAdminPreupload && !session.isSuper) {
+    return NextResponse.json({ message: "permission denied" }, { status: 403 });
+  }
+
+  const result = await fetchSparkxJson<UploadResp>(useAdminPreupload ? "/api/v1/admin/files/preupload" : "/api/v1/files/preupload", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${session.accessToken}`,
